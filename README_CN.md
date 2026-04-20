@@ -81,6 +81,7 @@ zsh setup_claude_completion.sh
 
 更多工具即将推出！敬请关注更新。
 ---
-社区支持
+## 社区支持
 学 AI , 上 L 站
-[LinuxDO](https://linux.do/)
+
+[LinuxDO](https://linux.do)
