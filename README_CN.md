@@ -25,20 +25,41 @@ zsh tools/zsh-completion/setup_claude_completion.sh
 source ~/.zshrc
 ```
 
+### 2. [当前窗口标题锁定](tools/current-window-title-lock/)
+
+在当前 Zsh 会话中将终端窗口标题固定为指定值。
+
+**主要功能：**
+- 使用 `lock-title` 锁定当前窗口标题
+- 防止该 shell 中的 Claude 改写已锁定的标题
+- 使用 `unlock-title` 恢复正常标题行为
+- 使用 `title-status` 查看当前锁定状态
+
+**快速安装：**
+```bash
+source tools/current-window-title-lock/current_window_title_lock.zsh
+lock-title "Claude review"
+```
+
 ---
 
 ## 项目结构
 
 ```
-gittools/
+claudetools/
 ├── LICENSE
-├── README.md              # 英文
-├── README_CN.md           # 中文（本文件）
+├── README.md                        # 英文
+├── README_CN.md                     # 中文（本文件）
 └── tools/
-    └── zsh-completion/    # Zsh 自动补齐工具
+    ├── current-window-title-lock/   # 当前窗口标题锁定工具
+    │   ├── current_window_title_lock.zsh
+    │   ├── test_current_window_title_lock.zsh
+    │   ├── README.md                # 工具文档（英文）
+    │   └── README_CN.md             # 工具文档（中文）
+    └── zsh-completion/              # Zsh 自动补齐工具
         ├── setup_claude_completion.sh
-        ├── README.md      # 工具文档（英文）
-        └── README_CN.md   # 工具文档（中文）
+        ├── README.md                # 工具文档（英文）
+        └── README_CN.md             # 工具文档（中文）
 ```
 
 每个工具都有独立的目录，包含：

@@ -25,20 +25,41 @@ zsh tools/zsh-completion/setup_claude_completion.sh
 source ~/.zshrc
 ```
 
+### 2. [Current Window Title Lock](tools/current-window-title-lock/)
+
+Keep a terminal window title pinned to a fixed value for the current Zsh session.
+
+**Key Features:**
+- Lock the current window title with `lock-title`
+- Prevent Claude in that shell from changing the locked title
+- Restore normal title behavior with `unlock-title`
+- Check the current lock state with `title-status`
+
+**Quick Install:**
+```bash
+source tools/current-window-title-lock/current_window_title_lock.zsh
+lock-title "Claude review"
+```
+
 ---
 
 ## Project Structure
 
 ```
-gittools/
+claudetools/
 ├── LICENSE
-├── README.md              # English (This file)
-├── README_CN.md           # 中文
+├── README.md                        # English (This file)
+├── README_CN.md                     # 中文
 └── tools/
-    └── zsh-completion/    # Zsh completion tool
+    ├── current-window-title-lock/   # Current window title lock tool
+    │   ├── current_window_title_lock.zsh
+    │   ├── test_current_window_title_lock.zsh
+    │   ├── README.md                # Tool documentation (EN)
+    │   └── README_CN.md             # Tool documentation (CN)
+    └── zsh-completion/              # Zsh completion tool
         ├── setup_claude_completion.sh
-        ├── README.md      # Tool documentation (EN)
-        └── README_CN.md   # Tool documentation (CN)
+        ├── README.md                # Tool documentation (EN)
+        └── README_CN.md             # Tool documentation (CN)
 ```
 
 Each tool has its own directory with:
