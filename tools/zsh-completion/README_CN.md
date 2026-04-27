@@ -4,11 +4,10 @@
 
 ## 功能特性
 
-- **智能参数补齐**：自动补齐所有 `claude` CLI 选项并显示描述
-- **命令识别**：补齐子命令如 `agents`、`mcp`、`plugin`、`update` 等
-- **工具名称建议**：自动提示可用工具（`Bash`、`Edit`、`Read`、`Write`、`Glob`、`Grep`、`Agent`、`Task`、`WebFetch`、`WebSearch`、`Skill`）
-- **模型选择**：自动补齐模型选项（`sonnet`、`opus`、`haiku`、`claude-opus-4-6` 等）
-- **权限模式补齐**：提示权限模式（`acceptEdits`、`bypassPermissions`、`default`、`dontAsk`、`plan`、`auto`）
+- **基于帮助输出生成补齐**：根据当前已安装的 Claude CLI 的 `claude --help` 重新生成顶层选项和命令补齐
+- **枚举值与当前 CLI 同步**：直接从 `claude --help` 提取 `--permission-mode`、`--effort` 等可见取值
+- **仅作用于 Claude 的 matcher style**：只添加保守的 `:completion:*:*:claude:*` matcher-list，不改动全局补齐规则
+- **可重复安装**：重复运行时只替换安装器自己管理的 `~/.zshrc` 标记块
 
 ## 安装方法
 
@@ -19,9 +18,9 @@ source ~/.zshrc
 
 ## 脚本功能说明
 
-1. 创建 `~/.zsh/completions/` 目录
-2. 生成包含所有命令和选项的 `_claude` 补齐文件
-3. 更新 `~/.zshrc`，添加正确的 `fpath` 和 `compinit` 配置
+1. 检查 `PATH` 中是否存在 `claude`
+2. 读取 `claude --help` 并生成 `~/.zsh/completions/_claude`
+3. 只更新自己管理的 `~/.zshrc` 标记块
 
 ## 支持的命令
 

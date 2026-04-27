@@ -4,11 +4,10 @@ Enable intelligent tab completion for the `claude` command in Zsh shells.
 
 ## Features
 
-- **Smart Parameter Completion**: Auto-complete all `claude` CLI options with descriptions
-- **Command Recognition**: Complete subcommands like `agents`, `mcp`, `plugin`, `update`, etc.
-- **Tool Name Suggestions**: Auto-suggest available tools (`Bash`, `Edit`, `Read`, `Write`, `Glob`, `Grep`, `Agent`, `Task`, `WebFetch`, `WebSearch`, `Skill`)
-- **Model Selection**: Auto-complete model options (`sonnet`, `opus`, `haiku`, `claude-opus-4-6`, etc.)
-- **Permission Mode Completion**: Suggest permission modes (`acceptEdits`, `bypassPermissions`, `default`, `dontAsk`, `plan`, `auto`)
+- **Help-derived completions**: Regenerates top-level `claude` options and commands from the currently installed Claude CLI
+- **Current enum values**: Picks up visible values such as `--permission-mode` and `--effort` directly from `claude --help`
+- **Claude-only matcher style**: Adds a conservative `:completion:*:*:claude:*` matcher-list without changing your global completion rules
+- **Idempotent install**: Re-runs cleanly by replacing only the installer-managed block in `~/.zshrc`
 
 ## Installation
 
@@ -19,9 +18,9 @@ source ~/.zshrc
 
 ## What the Script Does
 
-1. Creates `~/.zsh/completions/` directory
-2. Generates `_claude` completion file with all commands and options
-3. Updates `~/.zshrc` with proper `fpath` and `compinit` configuration
+1. Verifies that `claude` is available in `PATH`
+2. Captures `claude --help` and generates `~/.zsh/completions/_claude`
+3. Updates only its own marked block in `~/.zshrc`
 
 ## Supported Commands
 
