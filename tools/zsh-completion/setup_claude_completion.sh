@@ -58,7 +58,9 @@ for line in lines:
     if section == 'options' and raw.startswith('-'):
         options.append({'raw': raw, 'description': description})
     elif section == 'commands':
-        commands.append({'raw': raw, 'name': raw.split()[0], 'description': description})
+        names = [part.strip() for part in raw.split('|') if part.strip()]
+        for name in names:
+            commands.append({'raw': raw, 'name': name, 'description': description})
 
 if not options or not commands:
     raise SystemExit('failed to parse enough data from claude --help')

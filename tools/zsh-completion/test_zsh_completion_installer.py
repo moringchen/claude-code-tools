@@ -56,6 +56,9 @@ class ZshCompletionInstallerTests(unittest.TestCase):
             self.assertIn("xhigh", completion)
             self.assertIn("acceptEdits auto bypassPermissions default dontAsk plan", completion)
             self.assertNotIn("acceptEdits bypassPermissions default dontAsk plan auto", completion)
+            self.assertIn("'plugin:Manage Claude Code plugins'", completion)
+            self.assertIn("'plugins:Manage Claude Code plugins'", completion)
+            self.assertNotIn("'plugin|plugins:Manage Claude Code plugins'", completion)
 
     def test_installer_writes_claude_scoped_zshrc_block(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
