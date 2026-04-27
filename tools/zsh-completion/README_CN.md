@@ -13,10 +13,7 @@
 ## 安装方法
 
 ```bash
-# 运行配置脚本（需要 Zsh）
-zsh setup_claude_completion.sh
-
-# 重新加载 shell 配置
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/zsh-completion/setup_claude_completion.sh | bash
 source ~/.zshrc
 ```
 

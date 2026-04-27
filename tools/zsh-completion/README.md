@@ -13,10 +13,7 @@ Enable intelligent tab completion for the `claude` command in Zsh shells.
 ## Installation
 
 ```bash
-# Run the setup script (Zsh required)
-zsh setup_claude_completion.sh
-
-# Reload your shell configuration
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/zsh-completion/setup_claude_completion.sh | bash
 source ~/.zshrc
 ```
 

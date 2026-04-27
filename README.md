@@ -21,24 +21,24 @@ Enable intelligent tab completion for the `claude` command in Zsh shells.
 
 **Quick Install:**
 ```bash
-zsh tools/zsh-completion/setup_claude_completion.sh
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/zsh-completion/setup_claude_completion.sh | bash
 source ~/.zshrc
 ```
 
-### 2. [Current Window Title Lock](tools/current-window-title-lock/)
+### 2. [cliTitleName](tools/cliTitleName/)
 
-Keep a terminal window title pinned to a fixed value for the current Zsh session.
+Set the current terminal window title with a single `titlename` command.
 
 **Key Features:**
-- Lock the current window title with `lock-title`
-- Prevent Claude in that shell from changing the locked title
-- Restore normal title behavior with `unlock-title`
-- Check the current lock state with `title-status`
+- Set the current terminal window title immediately
+- In Ghostty + interactive zsh, disable later title rewrites for the current shell session
+- Keep the command surface to a single `titlename "..."` invocation
+- Restore normal Ghostty title automation automatically in a new shell
 
 **Quick Install:**
 ```bash
-source tools/current-window-title-lock/current_window_title_lock.zsh
-lock-title "Claude review"
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/cliTitleName/install.sh | bash
+source ~/.zshrc
 ```
 
 ---
@@ -51,9 +51,11 @@ claudetools/
 ├── README.md                        # English (This file)
 ├── README_CN.md                     # 中文
 └── tools/
-    ├── current-window-title-lock/   # Current window title lock tool
-    │   ├── current_window_title_lock.zsh
-    │   ├── test_current_window_title_lock.zsh
+    ├── cliTitleName/                # Terminal title tool
+    │   ├── titlename
+    │   ├── titlename.zsh
+    │   ├── install.sh
+    │   ├── test_cliTitleName.zsh
     │   ├── README.md                # Tool documentation (EN)
     │   └── README_CN.md             # Tool documentation (CN)
     └── zsh-completion/              # Zsh completion tool
@@ -72,13 +74,13 @@ Each tool has its own directory with:
 ## Installation
 
 ```bash
-# Clone the repository
-git clone git@github.com:moringchen/claude-code-tools.git
-cd claude-code-tools
+# Claude CLI Zsh completion
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/zsh-completion/setup_claude_completion.sh | bash
+source ~/.zshrc
 
-# Choose a tool and follow its README
-cd tools/zsh-completion
-zsh setup_claude_completion.sh
+# cliTitleName
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/cliTitleName/install.sh | bash
+source ~/.zshrc
 ```
 
 ---

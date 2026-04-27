@@ -10,9 +10,10 @@ This tool is supported only on macOS.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/cliTitleName/install.sh | bash
+source ~/.zshrc
 ```
 
-After installation, interactive zsh shells load `titlename` as a shell function from `~/.config/cliTitleName/titlename.zsh`. The executable at `~/.local/bin/titlename` remains available as the fallback outside that shell-function context. If your current shell was already open before installation, run `source ~/.zshrc` once or open a new shell.
+After installation, interactive zsh shells load `titlename` as a shell function from `~/.config/cliTitleName/titlename.zsh`. The executable at `~/.local/bin/titlename` remains available as the fallback outside that shell-function context.
 
 ## Usage
 

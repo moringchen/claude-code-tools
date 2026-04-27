@@ -10,9 +10,10 @@ cliTitleName 是一个极简的、仅支持 macOS 的工具，只有一个命令
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/cliTitleName/install.sh | bash
+source ~/.zshrc
 ```
 
-安装后，交互式 zsh 会从 `~/.config/cliTitleName/titlename.zsh` 加载 `titlename` shell function。`~/.local/bin/titlename` 这个可执行文件仍然会保留，用作非 shell-function 场景下的回退入口。如果安装前你当前 shell 已经打开，请再执行一次 `source ~/.zshrc`，或者直接打开一个新的 shell。
+安装后，交互式 zsh 会从 `~/.config/cliTitleName/titlename.zsh` 加载 `titlename` shell function。`~/.local/bin/titlename` 这个可执行文件仍然会保留，用作非 shell-function 场景下的回退入口。
 
 ## 使用方式
 

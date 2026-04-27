@@ -21,24 +21,24 @@
 
 **快速安装：**
 ```bash
-zsh tools/zsh-completion/setup_claude_completion.sh
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/zsh-completion/setup_claude_completion.sh | bash
 source ~/.zshrc
 ```
 
-### 2. [当前窗口标题锁定](tools/current-window-title-lock/)
+### 2. [cliTitleName](tools/cliTitleName/)
 
-在当前 Zsh 会话中将终端窗口标题固定为指定值。
+使用单个 `titlename` 命令设置当前终端窗口标题。
 
 **主要功能：**
-- 使用 `lock-title` 锁定当前窗口标题
-- 防止该 shell 中的 Claude 改写已锁定的标题
-- 使用 `unlock-title` 恢复正常标题行为
-- 使用 `title-status` 查看当前锁定状态
+- 立即设置当前终端窗口标题
+- 在 Ghostty + 交互式 zsh 中，禁用当前 shell 会话后续的标题改写
+- 保持单一命令入口：`titlename "..."`
+- 新开一个 shell 后自动恢复 Ghostty 默认标题行为
 
 **快速安装：**
 ```bash
-source tools/current-window-title-lock/current_window_title_lock.zsh
-lock-title "Claude review"
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/cliTitleName/install.sh | bash
+source ~/.zshrc
 ```
 
 ---
@@ -51,9 +51,11 @@ claudetools/
 ├── README.md                        # 英文
 ├── README_CN.md                     # 中文（本文件）
 └── tools/
-    ├── current-window-title-lock/   # 当前窗口标题锁定工具
-    │   ├── current_window_title_lock.zsh
-    │   ├── test_current_window_title_lock.zsh
+    ├── cliTitleName/                # 终端标题工具
+    │   ├── titlename
+    │   ├── titlename.zsh
+    │   ├── install.sh
+    │   ├── test_cliTitleName.zsh
     │   ├── README.md                # 工具文档（英文）
     │   └── README_CN.md             # 工具文档（中文）
     └── zsh-completion/              # Zsh 自动补齐工具
@@ -72,13 +74,13 @@ claudetools/
 ## 安装方法
 
 ```bash
-# 克隆仓库
-git clone git@github.com:moringchen/claude-code-tools.git
-cd claude-code-tools
+# Claude CLI Zsh 参数自动补齐
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/zsh-completion/setup_claude_completion.sh | bash
+source ~/.zshrc
 
-# 选择工具并按 README 说明操作
-cd tools/zsh-completion
-zsh setup_claude_completion.sh
+# cliTitleName
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/cliTitleName/install.sh | bash
+source ~/.zshrc
 ```
 
 ---
