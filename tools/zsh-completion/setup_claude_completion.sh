@@ -98,15 +98,15 @@ def render_option(option):
         prefix = ' '.join(f"'{name}'" for name in names)
 
     if argument == '<mode>' and choices:
-        return f"{prefix}[{description}]:mode:({' '.join(choices)})"
+        return f"{prefix}'[{description}]:mode:({' '.join(choices)})'"
     if argument == '<level>' and choices:
-        return f"{prefix}[{description}]:level:({' '.join(choices)})"
+        return f"{prefix}'[{description}]:level:({' '.join(choices)})'"
     if argument == '<format>' and choices:
-        return f"{prefix}[{description}]:format:({' '.join(choices)})"
+        return f"{prefix}'[{description}]:format:({' '.join(choices)})'"
     if argument:
         label = argument.strip('<>[]').split(':', 1)[0]
-        return f"{prefix}[{description}]:{label}:"
-    return f"{prefix}[{description}]"
+        return f"{prefix}'[{description}]:{label}:'"
+    return f"{prefix}'[{description}]'"
 
 
 print('#compdef claude')
@@ -126,7 +126,7 @@ for command in commands:
     print(f"    '{escape(command['name'])}:{escape(command['description'])}'")
 print('  )')
 print()
-print('  _arguments -C \\\n    $global_options \\\n    ": :->command" \\\n    "*:: :->args"')
+print('  _arguments -C \\\n    "$global_options[@]" \\\n    ": :->command" \\\n    "*:: :->args"')
 print()
 print('  case "$state" in')
 print('    command)')

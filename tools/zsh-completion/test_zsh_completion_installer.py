@@ -73,6 +73,24 @@ class ZshCompletionInstallerTests(unittest.TestCase):
             )
             self.assertEqual(syntax.returncode, 0, syntax.stderr)
 
+    def test_generated_completion_loads_without_bad_pattern(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = pathlib.Path(tmp)
+            result = self.run_installer(home)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            runtime = subprocess.run(
+                [
+                    "zsh",
+                    "-fc",
+                    "source \"$HOME/.zsh/completions/_claude\"; _arguments(){ :; }; _describe(){ :; }; _claude",
+                ],
+                env={**os.environ, "HOME": str(home)},
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(runtime.returncode, 0, runtime.stderr)
+
     def test_installer_writes_claude_scoped_zshrc_block(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             home = pathlib.Path(tmp)
