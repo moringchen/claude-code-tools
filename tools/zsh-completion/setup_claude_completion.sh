@@ -84,7 +84,7 @@ def extract_choices(argument: str | None, description: str):
 
 
 def escape(text: str):
-    return text.replace('\\', '\\\\').replace("'", "'\\''")
+    return text.replace("'", "''")
 
 
 def render_option(option):

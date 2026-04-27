@@ -60,6 +60,19 @@ class ZshCompletionInstallerTests(unittest.TestCase):
             self.assertIn("'plugins:Manage Claude Code plugins'", completion)
             self.assertNotIn("'plugin|plugins:Manage Claude Code plugins'", completion)
 
+    def test_generated_completion_is_valid_zsh_syntax(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = pathlib.Path(tmp)
+            result = self.run_installer(home)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            syntax = subprocess.run(
+                ["zsh", "-n", str(home / ".zsh" / "completions" / "_claude")],
+                text=True,
+                capture_output=True,
+            )
+            self.assertEqual(syntax.returncode, 0, syntax.stderr)
+
     def test_installer_writes_claude_scoped_zshrc_block(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             home = pathlib.Path(tmp)
