@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+
+if [[ "$(uname -s)" != "Darwin" ]]; then
+  printf '%s\n' 'titlename supports macOS only' >&2
+  exit 1
+fi
+
+if [[ $# -ne 1 ]] || [[ -z "$1" ]]; then
+  printf '%s\n' 'usage: titlename "Window Title"' >&2
+  exit 1
+fi
+
+printf '\033]2;%s\a' "$1"
