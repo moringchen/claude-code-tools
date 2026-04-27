@@ -6,6 +6,7 @@
 
 - **基于帮助输出生成补齐**：根据当前已安装的 Claude CLI 的 `claude --help` 重新生成顶层选项和命令补齐
 - **枚举值与当前 CLI 同步**：直接从 `claude --help` 提取 `--permission-mode`、`--effort` 等可见取值
+- **稳定的选项插入行为**：生成出来的 `_claude` 会使用保守的局部匹配，避免激进的全局 Zsh matcher 规则干扰 Claude 选项补齐
 - **仅作用于 Claude 的 matcher style**：只添加保守的 `:completion:*:*:claude:*` matcher-list，不改动全局补齐规则
 - **可重复安装**：重复运行时只替换安装器自己管理的 `~/.zshrc` 标记块
 
@@ -21,6 +22,7 @@ source ~/.zshrc
 1. 检查 `PATH` 中是否存在 `claude`
 2. 读取 `claude --help` 并生成 `~/.zsh/completions/_claude`
 3. 只更新自己管理的 `~/.zshrc` 标记块
+4. 生成的 `_claude` 会在全局 Zsh matcher 更激进时，仍尽量保持光标位置和选项匹配行为稳定
 
 ## 支持的命令
 

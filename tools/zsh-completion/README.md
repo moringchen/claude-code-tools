@@ -6,6 +6,7 @@ Enable intelligent tab completion for the `claude` command in Zsh shells.
 
 - **Help-derived completions**: Regenerates top-level `claude` options and commands from the currently installed Claude CLI
 - **Current enum values**: Picks up visible values such as `--permission-mode` and `--effort` directly from `claude --help`
+- **Stable option insertion**: The generated `_claude` applies conservative local matching so aggressive global Zsh matcher rules do not distort Claude option completion
 - **Claude-only matcher style**: Adds a conservative `:completion:*:*:claude:*` matcher-list without changing your global completion rules
 - **Idempotent install**: Re-runs cleanly by replacing only the installer-managed block in `~/.zshrc`
 
@@ -21,6 +22,7 @@ source ~/.zshrc
 1. Verifies that `claude` is available in `PATH`
 2. Captures `claude --help` and generates `~/.zsh/completions/_claude`
 3. Updates only its own marked block in `~/.zshrc`
+4. Generates a `_claude` function that keeps cursor placement and option matching stable even when your global Zsh completion matchers are more aggressive
 
 ## Supported Commands
 

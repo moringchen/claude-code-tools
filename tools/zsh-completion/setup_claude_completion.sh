@@ -84,7 +84,7 @@ def extract_choices(argument: str | None, description: str):
 
 
 def escape(text: str):
-    return text.replace("'", "''")
+    return text.replace('\\', '\\\\').replace("'", "''").replace('[', '\\[').replace(']', '\\]')
 
 
 def render_option(option):
@@ -116,6 +116,8 @@ print('  local curcontext="$curcontext" state line')
 print('  typeset -A opt_args')
 print('  local -a global_options commands')
 print()
+print('  (( $+compstate )) && compstate[to_end]=always')
+print()
 print('  global_options=(')
 for option in options:
     print(f'    {render_option(option)}')
@@ -126,7 +128,7 @@ for command in commands:
     print(f"    '{escape(command['name'])}:{escape(command['description'])}'")
 print('  )')
 print()
-print('  _arguments -C \\\n    "$global_options[@]" \\\n    ": :->command" \\\n    "*:: :->args"')
+print("  _arguments -M 'm:{a-z}={A-Z}' -C \\\n    \"$global_options[@]\" \\\n    \": :->command\" \\\n    \"*:: :->args\"")
 print()
 print('  case "$state" in')
 print('    command)')

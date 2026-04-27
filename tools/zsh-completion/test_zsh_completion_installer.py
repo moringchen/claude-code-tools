@@ -2,9 +2,12 @@ from __future__ import annotations
 
 import os
 import pathlib
+import pty
+import select
 import shlex
 import subprocess
 import tempfile
+import time
 import unittest
 
 SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
@@ -44,6 +47,63 @@ class ZshCompletionInstallerTests(unittest.TestCase):
             capture_output=True,
         )
 
+    def complete_and_capture(self, home: pathlib.Path, seed: str) -> tuple[str, int]:
+        zshrc = home / ".zshrc"
+        zshrc.write_text(
+            zshrc.read_text(encoding="utf-8")
+            + "\n"
+            + "zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}' 'r:|=*' 'l:|=* r:|=*'\n"
+            + "_capture_buffer_state() {\n"
+            + "  print -r -- \"$BUFFER\" > \"$HOME/.buffer_state\"\n"
+            + "  print -r -- \"$CURSOR\" > \"$HOME/.cursor_state\"\n"
+            + "  zle accept-line\n"
+            + "}\n"
+            + "zle -N _capture_buffer_state\n"
+            + "bindkey '^X^B' _capture_buffer_state\n",
+            encoding="utf-8",
+        )
+
+        env = os.environ.copy()
+        env["HOME"] = str(home)
+
+        master, slave = pty.openpty()
+        process = subprocess.Popen(
+            ["/bin/zsh", "-i"],
+            stdin=slave,
+            stdout=slave,
+            stderr=slave,
+            env=env,
+            close_fds=True,
+        )
+        os.close(slave)
+
+        def drain(timeout: float = 0.5) -> str:
+            end = time.time() + timeout
+            output = b""
+            while time.time() < end:
+                ready, _, _ = select.select([master], [], [], 0.05)
+                if not ready:
+                    continue
+                chunk = os.read(master, 4096)
+                if not chunk:
+                    break
+                output += chunk
+            return output.decode("utf-8", errors="replace")
+
+        try:
+            drain(1.0)
+            os.write(master, seed.encode("utf-8") + b"\t\x18\x02")
+            time.sleep(1.0)
+            drain(1.0)
+            buffer_value = (home / ".buffer_state").read_text(encoding="utf-8").rstrip("\n")
+            cursor_value = int((home / ".cursor_state").read_text(encoding="utf-8").strip())
+            return buffer_value, cursor_value
+        finally:
+            os.write(master, b"exit\n")
+            time.sleep(0.2)
+            drain(0.5)
+            process.wait(timeout=5)
+
     def test_installer_generates_completion_from_help_fixture(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             home = pathlib.Path(tmp)
@@ -59,6 +119,9 @@ class ZshCompletionInstallerTests(unittest.TestCase):
             self.assertIn("'plugin:Manage Claude Code plugins'", completion)
             self.assertIn("'plugins:Manage Claude Code plugins'", completion)
             self.assertNotIn("'plugin|plugins:Manage Claude Code plugins'", completion)
+            self.assertIn(r"--system-prompt\[-file\]", completion)
+            self.assertIn(r"\[DEPRECATED. Use --debug instead\]", completion)
+            self.assertIn("_arguments -M 'm:{a-z}={A-Z}' -C", completion)
 
     def test_generated_completion_is_valid_zsh_syntax(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -115,6 +178,28 @@ class ZshCompletionInstallerTests(unittest.TestCase):
             self.assertIn("# OPENSPEC:START", updated)
             self.assertIn("zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}' 'r:|=*' 'l:|=* r:|=*'", updated)
             self.assertEqual(updated.count("# >>> Claude CLI zsh completion >>>"), 1)
+
+    def test_installer_prefers_permission_mode_under_aggressive_global_matchers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = pathlib.Path(tmp)
+            result = self.run_installer(home)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            buffer_value, cursor_value = self.complete_and_capture(home, "claude --permi")
+
+            self.assertEqual(buffer_value, "claude --permission-mode ")
+            self.assertEqual(cursor_value, len(buffer_value))
+
+    def test_installer_moves_cursor_to_end_after_unique_option_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = pathlib.Path(tmp)
+            result = self.run_installer(home)
+            self.assertEqual(result.returncode, 0, result.stderr)
+
+            buffer_value, cursor_value = self.complete_and_capture(home, "claude --nam")
+
+            self.assertEqual(buffer_value, "claude --name ")
+            self.assertEqual(cursor_value, len(buffer_value))
 
     def test_installer_fails_when_claude_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
