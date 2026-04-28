@@ -71,20 +71,6 @@ claudetools/
 
 ---
 
-## 安装方法
-
-```bash
-# Claude CLI Zsh 参数自动补齐
-curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/zsh-completion/setup_claude_completion.sh | bash
-source ~/.zshrc
-
-# cliTitleName
-curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/cliTitleName/install.sh | bash
-source ~/.zshrc
-```
-
----
-
 ## 贡献指南
 
 欢迎贡献！添加新工具时请遵循：

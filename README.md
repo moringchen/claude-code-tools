@@ -71,20 +71,6 @@ Each tool has its own directory with:
 
 ---
 
-## Installation
-
-```bash
-# Claude CLI Zsh completion
-curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/zsh-completion/setup_claude_completion.sh | bash
-source ~/.zshrc
-
-# cliTitleName
-curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/cliTitleName/install.sh | bash
-source ~/.zshrc
-```
-
----
-
 ## Contributing
 
 Contributions are welcome! When adding a new tool:
