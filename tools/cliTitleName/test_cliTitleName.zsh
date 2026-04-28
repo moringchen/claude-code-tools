@@ -158,6 +158,29 @@ assert_contains "$zshrc_contents" '# existing zshrc content' 'install.sh should 
 assert_contains "$zshrc_contents" "$managed_block" 'install.sh should add the managed cliTitleName block to ~/.zshrc'
 assert_eq '1' "$managed_block_count" 'install.sh should add exactly one managed block on first run'
 
+stdin_home=$(mktemp -d)
+stdin_installed_path="$stdin_home/.local/bin/titlename"
+stdin_installed_function_path="$stdin_home/.config/cliTitleName/titlename.zsh"
+stdin_zshrc_path="$stdin_home/.zshrc"
+stdin_expected_install_stdout=$'Installed fallback executable to '"$stdin_installed_path"$'\nInstalled zsh integration to '"$stdin_installed_function_path"$'\nManaged zshrc loader in '"$stdin_zshrc_path"$'\nAdd '"$stdin_home/.local/bin"$' to your PATH if needed.'
+print -r -- '# stdin zshrc content' > "$stdin_zshrc_path"
+run_capture env HOME="$stdin_home" PATH="/usr/bin:/bin:/usr/sbin:/sbin" bash -c 'bash < "$1"' _ "$INSTALLER"
+assert_eq '0' "$RUN_STATUS" 'install.sh should succeed when piped to bash via stdin'
+assert_true '[[ -f "$stdin_installed_path" ]]' 'stdin install should install titlename into ~/.local/bin'
+assert_true '[[ -x "$stdin_installed_path" ]]' 'stdin install should make the installed titlename executable'
+assert_true '[[ -f "$stdin_installed_function_path" ]]' 'stdin install should install titlename.zsh into ~/.config/cliTitleName'
+assert_eq "$stdin_expected_install_stdout" "$RUN_STDOUT" 'stdin install should print installed paths and PATH hint'
+assert_eq '' "$RUN_STDERR" 'stdin install should not write stderr on success'
+stdin_installed_command_contents=$(<"$stdin_installed_path")
+stdin_installed_function_contents=$(<"$stdin_installed_function_path")
+stdin_zshrc_contents=$(<"$stdin_zshrc_path")
+stdin_managed_block_count=$(grep -c '^# >>> cliTitleName >>>$' "$stdin_zshrc_path")
+assert_eq "$expected_command_contents" "$stdin_installed_command_contents" 'stdin install should install the expected titlename script contents'
+assert_eq "$expected_function_contents" "$stdin_installed_function_contents" 'stdin install should install the expected titlename.zsh contents'
+assert_contains "$stdin_zshrc_contents" '# stdin zshrc content' 'stdin install should preserve existing ~/.zshrc content'
+assert_contains "$stdin_zshrc_contents" "$managed_block" 'stdin install should add the managed cliTitleName block to ~/.zshrc'
+assert_eq '1' "$stdin_managed_block_count" 'stdin install should add exactly one managed block'
+
 run_capture env HOME="$installer_home" PATH="/usr/bin:/bin:/usr/sbin:/sbin" bash "$INSTALLER"
 assert_eq '0' "$RUN_STATUS" 'install.sh should be idempotent on a second run'
 assert_eq "$expected_install_stdout" "$RUN_STDOUT" 'install.sh should report the same installed paths on a second run'
