@@ -110,6 +110,103 @@ assert_contains "${functions[_ghostty_precmd]}" '\e]133;A;cl=line\a' 'titlename 
 assert_contains "${functions[_ghostty_precmd]}" '\e]133;C\a' 'titlename should preserve Ghostty prompt-end marker in _ghostty_precmd'
 assert_contains "${functions[_ghostty_preexec]}" '\e]133;C\a' 'titlename should preserve Ghostty semantic marker in _ghostty_preexec'
 
+functions[_ghostty_precmd]=$(cat <<'EOF'
+	builtin local -i cmd_status=$?
+	builtin emulate -L zsh -o no_warn_create_global -o no_aliases
+	if ! builtin zle
+	then
+		if (( _ghostty_state == 1 ))
+		then
+			builtin print -nu $_ghostty_fd '\e]133;D;'$cmd_status'\a'
+			(( _ghostty_state = 2 ))
+		elif (( _ghostty_state == 2 ))
+		then
+			builtin print -nu $_ghostty_fd '\e]133;D\a'
+		fi
+	fi
+	builtin local mark1=$'%{\e]133;A;cl=line\a%}'
+	if [[ -o prompt_percent ]]
+	then
+		builtin typeset -g precmd_functions
+		if [[ ${precmd_functions[-1]} == _ghostty_precmd ]]
+		then
+			builtin local ps1_changed=0
+			if [[ -n ${_ghostty_saved_ps1+x} ]]
+			then
+				if [[ $PS1 == $_ghostty_marked_ps1 ]]
+				then
+					PS1=$_ghostty_saved_ps1
+					PS2=$_ghostty_saved_ps2
+				elif [[ $PS1 != $_ghostty_saved_ps1 ]]
+				then
+					ps1_changed=1
+				fi
+			fi
+			_ghostty_saved_ps1=$PS1
+			_ghostty_saved_ps2=$PS2
+			builtin local mark2=$'%{\e]133;P;k=s\a%}'
+			builtin local markB=$'%{\e]133;B\a%}'
+			[[ $PS1 == *[^%]% || $PS1 == % ]] && PS1=$PS1%
+			PS1=${mark1}${PS1}${markB}
+			if (( ! ps1_changed )) && [[ $PS1 == *$'\n'* ]]
+			then
+				PS1=${PS1//$'\n'/$'\n'${mark2}}
+			fi
+			[[ $PS2 == *[^%]% || $PS2 == % ]] && PS2=$PS2%
+			PS2=${mark2}${PS2}${markB}
+			_ghostty_marked_ps1=$PS1
+			(( _ghostty_state = 2 ))
+		else
+			precmd_functions=(${precmd_functions:#_ghostty_precmd} _ghostty_precmd)
+			if ! builtin zle
+			then
+				builtin print -rnu $_ghostty_fd -- $mark1[3,-3]
+				(( _ghostty_state = 2 ))
+			fi
+		fi
+	elif ! builtin zle
+	then
+		builtin print -rnu $_ghostty_fd -- $mark1[3,-3]
+		(( _ghostty_state = 2 ))
+	fi
+	_ghostty_report_pwd
+	builtin print -rnu 1 '\e]2;prompt title\a'
+EOF
+)
+functions[_ghostty_preexec]=$(cat <<'EOF'
+	builtin emulate -L zsh -o no_warn_create_global -o no_aliases
+	if [[ -n ${_ghostty_saved_ps1+x} && $PS1 == $_ghostty_marked_ps1 ]]
+	then
+		PS1=$_ghostty_saved_ps1
+		PS2=$_ghostty_saved_ps2
+	fi
+	builtin print -nu $_ghostty_fd '\e]133;C\a'
+	(( _ghostty_state = 1 ))
+	builtin print -rnu 1 '\e]2;command title\a'
+EOF
+)
+_ghostty_report_pwd() {
+  builtin true
+}
+_ghostty_fd=1
+_ghostty_state=0
+precmd_functions=(_ghostty_precmd)
+PS1='%# '
+PS2='> '
+_ghostty_saved_ps1=$PS1
+_ghostty_saved_ps2=$PS2
+_ghostty_marked_ps1=$PS1
+
+run_capture titlename 'Claude Window'
+assert_eq '0' "$RUN_STATUS" 'titlename should succeed when patching Ghostty-style multiline hook bodies'
+assert_eq $'\e]2;Claude Window\a' "$RUN_STDOUT" 'titlename should still emit the expected OSC title sequence for Ghostty-style hooks'
+assert_eq '' "$RUN_STDERR" 'titlename should not emit parse errors when patching Ghostty-style multiline hook bodies'
+assert_not_contains "${functions[_ghostty_precmd]}" '\e]2;' 'titlename should remove title writes from Ghostty-style _ghostty_precmd bodies'
+assert_not_contains "${functions[_ghostty_preexec]}" '\e]2;' 'titlename should remove title writes from Ghostty-style _ghostty_preexec bodies'
+assert_contains "${functions[_ghostty_preexec]}" '_ghostty_marked_ps1' 'titlename should preserve Ghostty-style multiline preexec conditions'
+assert_contains "${functions[_ghostty_precmd]}" 'ps1_changed' 'titlename should preserve Ghostty-style multiline precmd conditions'
+assert_contains "${functions[_ghostty_precmd]}" '_ghostty_report_pwd' 'titlename should preserve non-title Ghostty precmd behavior'
+
 run_capture "$COMMAND"
 assert_true '[[ "$RUN_STATUS" -ne 0 ]]' 'titlename should fail without arguments'
 assert_eq '' "$RUN_STDOUT" 'titlename should not write stdout on usage failure'

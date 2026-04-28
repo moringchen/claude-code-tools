@@ -15,7 +15,7 @@ _titlename_strip_ghostty_title_lines() {
     filtered_lines+=("$line")
   done
 
-  functions[$function_name]="${(j:$'\n':)filtered_lines}"
+  functions[$function_name]="${(F)filtered_lines}"
 }
 
 _titlename_disable_ghostty_title_rewrites() {
