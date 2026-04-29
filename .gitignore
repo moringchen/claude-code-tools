@@ -20,6 +20,12 @@
 # Claude Code / OMC config
 .claude/
 .omc/
+.worktrees/
+
+# Dependencies and build outputs
+node_modules/
+dist/
+target/
 
 # Source reference
 claudeparamassist/

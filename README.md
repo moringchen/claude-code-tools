@@ -41,6 +41,17 @@ curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/t
 source ~/.zshrc
 ```
 
+### 3. [Claude Task Window](tools/claudeTaskWindow/)
+
+A desktop overlay for Claude Code task activity with user-level global hooks, an always-visible top bar, task counts, click-to-focus actions, and notification or voice toggles.
+
+**Quick Start:**
+```bash
+cd tools/claudeTaskWindow
+npm install
+npm test
+```
+
 ---
 
 ## Project Structure
@@ -58,10 +69,17 @@ claudetools/
     │   ├── test_cliTitleName.zsh
     │   ├── README.md                # Tool documentation (EN)
     │   └── README_CN.md             # Tool documentation (CN)
-    └── zsh-completion/              # Zsh completion tool
-        ├── setup_claude_completion.sh
+    ├── zsh-completion/              # Zsh completion tool
+    │   ├── setup_claude_completion.sh
+    │   ├── README.md                # Tool documentation (EN)
+    │   └── README_CN.md             # Tool documentation (CN)
+    └── claudeTaskWindow/            # Claude Task Window desktop overlay
         ├── README.md                # Tool documentation (EN)
-        └── README_CN.md             # Tool documentation (CN)
+        ├── README_CN.md             # Tool documentation (CN)
+        ├── package.json
+        ├── src/
+        ├── scripts/
+        └── src-tauri/
 ```
 
 Each tool has its own directory with:

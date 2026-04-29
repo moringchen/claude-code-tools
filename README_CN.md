@@ -41,6 +41,17 @@ curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/t
 source ~/.zshrc
 ```
 
+### 3. [Claude Task Window](tools/claudeTaskWindow/)
+
+用于展示 Claude Code 任务活动的桌面悬浮层，提供用户级全局 hooks、顶部常驻条、任务统计、点击聚焦，以及通知与语音播报开关。
+
+**快速开始：**
+```bash
+cd tools/claudeTaskWindow
+npm install
+npm test
+```
+
 ---
 
 ## 项目结构
@@ -58,10 +69,17 @@ claudetools/
     │   ├── test_cliTitleName.zsh
     │   ├── README.md                # 工具文档（英文）
     │   └── README_CN.md             # 工具文档（中文）
-    └── zsh-completion/              # Zsh 自动补齐工具
-        ├── setup_claude_completion.sh
+    ├── zsh-completion/              # Zsh 自动补齐工具
+    │   ├── setup_claude_completion.sh
+    │   ├── README.md                # 工具文档（英文）
+    │   └── README_CN.md             # 工具文档（中文）
+    └── claudeTaskWindow/            # Claude Task Window 桌面悬浮工具
         ├── README.md                # 工具文档（英文）
-        └── README_CN.md             # 工具文档（中文）
+        ├── README_CN.md             # 工具文档（中文）
+        ├── package.json
+        ├── src/
+        ├── scripts/
+        └── src-tauri/
 ```
 
 每个工具都有独立的目录，包含：
@@ -89,6 +107,7 @@ claudetools/
 ---
 
 更多工具即将推出！敬请关注更新。
+
 ---
 ## 社区支持
 学 AI , 上 L 站
