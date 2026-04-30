@@ -58,6 +58,18 @@ _titlename_disable_ghostty_title_rewrites() {
   _titlename_strip_ghostty_title_lines _ghostty_preexec
 }
 
+claude() {
+  local claude_path
+  claude_path=$(whence -p claude 2>/dev/null || true)
+
+  if [[ -z "$claude_path" ]]; then
+    printf '%s\n' 'cliTitleName: claude executable not found in PATH' >&2
+    return 127
+  fi
+
+  CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1 command "$claude_path" "$@"
+}
+
 titlename() {
   if [[ "$(uname -s)" != "Darwin" ]]; then
     printf '%s\n' 'titlename supports macOS only' >&2
