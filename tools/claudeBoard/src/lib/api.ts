@@ -1,7 +1,9 @@
 import type { Preferences } from "./settings";
 import type { TaskCard, TaskCounts, WindowTarget } from "./task-model";
 
-export const BASE_URL = "http://127.0.0.1:46123";
+export const BASE_URL =
+  (globalThis as { __CLAUDE_BOARD_BASE_URL__?: string }).__CLAUDE_BOARD_BASE_URL__ ??
+  "http://127.0.0.1:46123";
 
 type SnapshotDto = {
   counts: TaskCountsDto;

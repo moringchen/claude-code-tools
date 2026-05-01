@@ -25,14 +25,15 @@ function makeTask(
 }
 
 describe("task-model", () => {
-  it("sorts needs_user before completed before running", () => {
+  it("sorts needs_user before running before completed before idle_or_unknown", () => {
     const tasks = [
+      makeTask("4", "idle_or_unknown", "2026-04-24T15:03:00Z"),
       makeTask("3", "running", "2026-04-24T15:00:00Z"),
       makeTask("2", "completed", "2026-04-24T15:01:00Z"),
       makeTask("1", "needs_user", "2026-04-24T15:02:00Z"),
     ];
 
-    expect(sortTasks(tasks).map((task) => task.taskId)).toEqual(["1", "2", "3"]);
+    expect(sortTasks(tasks).map((task) => task.taskId)).toEqual(["1", "3", "2", "4"]);
   });
 
   it("builds aggregate counts", () => {

@@ -1,6 +1,6 @@
-# Claude Task Window
+# claudeBoard
 
-Claude Task Window is a desktop overlay for Claude Code task activity. It keeps an always-visible top overlay on screen so you can see task state at a glance and jump back to the right terminal when action is needed.
+claudeBoard is a desktop overlay for Claude Code task activity. It keeps an always-visible top overlay on screen so you can see task state at a glance and jump back to the right terminal when action is needed.
 
 ## Supported Platforms
 
@@ -21,7 +21,7 @@ Claude Task Window is a desktop overlay for Claude Code task activity. It keeps 
 ## Installation
 
 ```bash
-cd tools/claudeTaskWindow
+cd tools/claudeBoard
 npm install
 cargo fetch --manifest-path src-tauri/Cargo.toml
 ```
@@ -29,7 +29,7 @@ cargo fetch --manifest-path src-tauri/Cargo.toml
 ## Development
 
 ```bash
-cd tools/claudeTaskWindow
+cd tools/claudeBoard
 npm run dev
 npm test
 cargo test --manifest-path src-tauri/Cargo.toml

@@ -1,4 +1,4 @@
-use claude_task_window::{
+use claude_board::{
     alerts::{announcement_for, Preferences},
     model::TaskStatus,
 };

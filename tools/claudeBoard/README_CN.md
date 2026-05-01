@@ -1,6 +1,6 @@
-# Claude Task Window
+# claudeBoard
 
-Claude Task Window 是一个面向 Claude Code 任务活动的桌面悬浮层工具。它会在屏幕顶部保持常驻显示，方便你随时查看任务状态，并在需要时快速回到对应终端。
+claudeBoard 是一个面向 Claude Code 任务活动的桌面悬浮层工具。它会在屏幕顶部保持常驻显示，方便你随时查看任务状态，并在需要时快速回到对应终端。
 
 ## 支持平台
 
@@ -21,7 +21,7 @@ Claude Task Window 是一个面向 Claude Code 任务活动的桌面悬浮层工
 ## 安装
 
 ```bash
-cd tools/claudeTaskWindow
+cd tools/claudeBoard
 npm install
 cargo fetch --manifest-path src-tauri/Cargo.toml
 ```
@@ -29,7 +29,7 @@ cargo fetch --manifest-path src-tauri/Cargo.toml
 ## 开发
 
 ```bash
-cd tools/claudeTaskWindow
+cd tools/claudeBoard
 npm run dev
 npm test
 cargo test --manifest-path src-tauri/Cargo.toml

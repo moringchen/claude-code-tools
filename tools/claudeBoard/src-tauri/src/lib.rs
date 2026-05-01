@@ -6,3 +6,4 @@ pub mod model;
 pub mod scan;
 pub mod server;
 pub mod store;
+pub mod window_position;

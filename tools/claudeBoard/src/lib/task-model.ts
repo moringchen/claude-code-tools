@@ -31,8 +31,8 @@ export type TaskCounts = {
 
 const statusRank: Record<TaskStatus, number> = {
   needs_user: 0,
-  completed: 1,
-  running: 2,
+  running: 1,
+  completed: 2,
   idle_or_unknown: 3,
 };
 

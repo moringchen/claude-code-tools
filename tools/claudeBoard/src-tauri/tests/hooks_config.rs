@@ -1,4 +1,4 @@
-use claude_task_window::hooks_config::upsert_hooks;
+use claude_board::hooks_config::upsert_hooks;
 use serde_json::{json, Value};
 
 fn parse_output(output: &str) -> Value {
@@ -16,7 +16,7 @@ fn event_hooks<'a>(settings: &'a Value, event_name: &str) -> &'a [Value] {
 
 #[test]
 fn inserts_required_claude_code_hooks_into_empty_settings() {
-    let dispatch_command = "~/.claude-task-window/hook-dispatch.sh";
+    let dispatch_command = "~/.claude-board/hook-dispatch.sh";
     let output = upsert_hooks(r#"{"hooks":{}}"#, dispatch_command);
     let settings = parse_output(&output);
 
@@ -44,7 +44,7 @@ fn inserts_required_claude_code_hooks_into_empty_settings() {
 
 #[test]
 fn preserves_existing_hooks_and_appends_dispatch_hook_once() {
-    let dispatch_command = "~/.claude-task-window/hook-dispatch.sh";
+    let dispatch_command = "~/.claude-board/hook-dispatch.sh";
     let input = r#"
     {
       "keep": true,
@@ -120,7 +120,7 @@ fn preserves_existing_hooks_and_appends_dispatch_hook_once() {
 
 #[test]
 fn repeated_upsert_does_not_duplicate_dispatch_hook() {
-    let dispatch_command = "~/.claude-task-window/hook-dispatch.sh";
+    let dispatch_command = "~/.claude-board/hook-dispatch.sh";
     let once = upsert_hooks(r#"{"hooks":{}}"#, dispatch_command);
     let twice = upsert_hooks(&once, dispatch_command);
     let settings = parse_output(&twice);

@@ -12,7 +12,7 @@ export const defaultPreferences: Preferences = {
   speakNeedsUser: true,
 };
 
-const STORAGE_KEY = "claude-task-window.preferences";
+const STORAGE_KEY = "claude-board.preferences";
 
 type StorageLike = Pick<Map<string, string>, "get" | "set">;
 

@@ -7,17 +7,16 @@ type TaskListProps = {
 
 export function TaskList({ tasks, onTaskClick }: TaskListProps) {
   return (
-    <div className="task-list" role="list">
+    <ul className="island-task-list">
       {tasks.map((task) => (
-        <div key={task.taskId} role="listitem">
-          <button type="button" className="task-row" onClick={() => onTaskClick(task)}>
+        <li key={task.taskId} className="island-task-item">
+          <button type="button" className="island-task-row" onClick={() => onTaskClick(task)}>
             <span className="task-title">{task.title}</span>
             <span className="task-status">{task.status}</span>
             <span className="task-target-app">{task.windowTarget.app}</span>
-            <span className="task-target-descriptor">{task.windowTarget.descriptor}</span>
           </button>
-        </div>
+        </li>
       ))}
-    </div>
+    </ul>
   );
 }

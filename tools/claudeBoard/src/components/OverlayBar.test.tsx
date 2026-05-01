@@ -1,32 +1,65 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { OverlayBar } from "./OverlayBar";
 
+afterEach(() => {
+  cleanup();
+});
+
 describe("OverlayBar", () => {
-  it("renders 当前无任务 when counts are zero", () => {
+  it("renders the collapsed island summary", () => {
     render(
       <OverlayBar
-        counts={{ total: 0, needsUser: 0, completed: 0, running: 0 }}
+        summary="需确认：approve command"
         isExpanded={false}
         onToggle={() => {}}
+        onDragStart={() => {}}
       />,
     );
 
-    expect(screen.getByText("当前无任务")).toBeTruthy();
+    expect(screen.getByText("需确认：approve command")).toBeTruthy();
   });
 
-  it("renders the summary counters when tasks exist", () => {
+  it("toggles expansion for a stationary click", () => {
+    const onToggle = vi.fn();
+    const onDragStart = vi.fn();
+
     render(
       <OverlayBar
-        counts={{ total: 2, needsUser: 1, completed: 1, running: 0 }}
-        isExpanded={true}
-        onToggle={() => {}}
+        summary="当前无任务"
+        isExpanded={false}
+        onToggle={onToggle}
+        onDragStart={onDragStart}
       />,
     );
 
-    expect(screen.getByText("总 2")).toBeTruthy();
-    expect(screen.getByText("需确认 1")).toBeTruthy();
-    expect(screen.getByText("已完成 1")).toBeTruthy();
-    expect(screen.getByText("运行中 0")).toBeTruthy();
+    const button = screen.getByRole("button", { name: "当前无任务" });
+    fireEvent.mouseDown(button, { clientX: 100, clientY: 100 });
+    fireEvent.click(button);
+
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(onDragStart).not.toHaveBeenCalled();
+  });
+
+  it("starts dragging after pointer movement crosses threshold", () => {
+    const onToggle = vi.fn();
+    const onDragStart = vi.fn();
+
+    render(
+      <OverlayBar
+        summary="当前无任务"
+        isExpanded={false}
+        onToggle={onToggle}
+        onDragStart={onDragStart}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "当前无任务" });
+    fireEvent.mouseDown(button, { clientX: 10, clientY: 10 });
+    fireEvent.mouseMove(button, { clientX: 24, clientY: 10 });
+
+    expect(onDragStart).toHaveBeenCalledTimes(1);
+    expect(onToggle).not.toHaveBeenCalled();
   });
 });
+

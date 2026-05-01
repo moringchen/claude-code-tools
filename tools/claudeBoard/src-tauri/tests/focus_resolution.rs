@@ -1,4 +1,4 @@
-use claude_task_window::{
+use claude_board::{
     focus::{macos, resolve_focus, windows, FocusAttempt, FocusRequest, HostActivator},
     model::WindowTarget,
 };

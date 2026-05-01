@@ -7,25 +7,25 @@ import sys
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 CHECKS = {
-    "tools/claudeTaskWindow/README.md": [
+    "tools/claudeBoard/README.md": [
         "macOS",
         "Windows 10",
         "global hooks",
         "当前无任务",
     ],
-    "tools/claudeTaskWindow/README_CN.md": [
+    "tools/claudeBoard/README_CN.md": [
         "macOS",
         "Windows 11",
         "全局 hooks",
         "当前无任务",
     ],
     "README.md": [
-        "Claude Task Window",
-        "tools/claudeTaskWindow/",
+        "claudeBoard",
+        "tools/claudeBoard/",
     ],
     "README_CN.md": [
-        "Claude Task Window",
-        "tools/claudeTaskWindow/",
+        "claudeBoard",
+        "tools/claudeBoard/",
     ],
 }
 

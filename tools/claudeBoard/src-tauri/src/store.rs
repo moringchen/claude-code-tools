@@ -6,30 +6,34 @@ use crate::model::{
 
 #[derive(Default)]
 pub struct TaskStore {
-    tasks: HashMap<String, TaskCard>,
+    hook_tasks: HashMap<String, TaskCard>,
+    scanned_tasks: HashMap<String, TaskCard>,
 }
 
 impl TaskStore {
     pub fn apply(&mut self, event: HookEvent) {
         let key = format!("{}:{}:{}", event.session_id, event.pid, event.title);
-        let task = self.tasks.entry(key.clone()).or_insert_with(|| TaskCard {
-            task_id: key.clone(),
-            session_id: event.session_id.clone(),
-            pid: event.pid,
-            title: event.title.clone(),
-            status: TaskStatus::Running,
-            source: "hook".into(),
-            window_target: WindowTarget {
-                host_kind: "unknown".into(),
-                app: "unknown".into(),
-                descriptor: "unknown".into(),
-                tab_id: None,
-                pane_id: None,
-            },
-            started_at: event.occurred_at.clone(),
-            updated_at: event.occurred_at.clone(),
-            completed_at: None,
-        });
+        let task = self
+            .hook_tasks
+            .entry(key.clone())
+            .or_insert_with(|| TaskCard {
+                task_id: key.clone(),
+                session_id: event.session_id.clone(),
+                pid: event.pid,
+                title: event.title.clone(),
+                status: TaskStatus::Running,
+                source: "hook".into(),
+                window_target: WindowTarget {
+                    host_kind: "unknown".into(),
+                    app: "unknown".into(),
+                    descriptor: "unknown".into(),
+                    tab_id: None,
+                    pane_id: None,
+                },
+                started_at: event.occurred_at.clone(),
+                updated_at: event.occurred_at.clone(),
+                completed_at: None,
+            });
 
         task.updated_at = event.occurred_at.clone();
 
@@ -44,13 +48,45 @@ impl TaskStore {
         }
     }
 
+    pub fn replace_scanned_tasks(&mut self, tasks: Vec<TaskCard>) {
+        let previous_count = self.scanned_tasks.len();
+        let next_count = tasks.len();
+        eprintln!(
+            "[claudeBoard] store replace_scanned_tasks previous_count={} next_count={}",
+            previous_count, next_count
+        );
+
+        self.scanned_tasks = tasks
+            .into_iter()
+            .map(|task| (task.task_id.clone(), task))
+            .collect();
+    }
+
     pub fn snapshot(&self) -> TaskSnapshot {
-        let mut tasks = self.tasks.values().cloned().collect::<Vec<_>>();
+        let hook_session_pids = self
+            .hook_tasks
+            .values()
+            .map(|task| (task.session_id.as_str(), task.pid))
+            .collect::<std::collections::HashSet<_>>();
+
+        let mut tasks = self
+            .hook_tasks
+            .values()
+            .cloned()
+            .chain(
+                self.scanned_tasks
+                    .values()
+                    .filter(|task| {
+                        !hook_session_pids.contains(&(task.session_id.as_str(), task.pid))
+                    })
+                    .cloned(),
+            )
+            .collect::<Vec<_>>();
         tasks.sort_by(|left, right| {
             let rank = |status: &TaskStatus| match status {
                 TaskStatus::NeedsUser => 0,
-                TaskStatus::Completed => 1,
-                TaskStatus::Running => 2,
+                TaskStatus::Running => 1,
+                TaskStatus::Completed => 2,
                 TaskStatus::IdleOrUnknown => 3,
             };
 
