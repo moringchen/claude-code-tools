@@ -1,0 +1,191 @@
+:root {
+  color: #f8fafc;
+  color-scheme: light dark;
+  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: transparent;
+}
+
+#root {
+  display: flex;
+  justify-content: center;
+  padding: 0;
+}
+
+.island-shell {
+  display: inline-flex;
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+  flex-direction: column;
+  align-items: stretch;
+  overflow: hidden;
+  border: none;
+  border-radius: 14px;
+  background: rgba(2, 6, 14, 0.98);
+  box-shadow: none;
+  backdrop-filter: blur(22px);
+}
+
+.island-shell-expanded {
+  border-radius: 18px;
+}
+
+.island-bar {
+  display: flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  padding: 0 22px;
+  background: transparent;
+  color: inherit;
+  cursor: default;
+  user-select: none;
+}
+
+.island-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+
+.island-task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0 10px 12px;
+  list-style: none;
+}
+
+.island-task-item {
+  margin: 0;
+  padding: 0;
+}
+
+.island-task-row {
+  display: grid;
+  width: 100%;
+  height: 48px;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  border: 0;
+  border-radius: 16px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.task-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 620;
+}
+
+.task-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.task-status-label {
+  color: rgba(248, 250, 252, 0.72);
+  font-size: 0.82rem;
+}
+
+.task-status,
+.task-target-app {
+  color: rgba(248, 250, 252, 0.72);
+  font-size: 0.82rem;
+}
+
+/* Status Icons */
+.status-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+/* Running status - blue */
+.status-icon.running {
+  background: rgba(59, 130, 246, 0.15);
+}
+
+/* Waiting status - orange/amber */
+.status-icon.waiting {
+  background: rgba(245, 158, 11, 0.15);
+}
+
+/* Completed status - green */
+.status-icon.completed {
+  background: rgba(34, 197, 94, 0.15);
+}
+
+.status-icon .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(156, 163, 175, 0.8);
+}
+
+.status-icon .spinner {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(59, 130, 246, 0.3);
+  border-top-color: rgba(59, 130, 246, 1);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status-icon .pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.8);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.status-icon .check {
+  color: rgba(34, 197, 94, 1);
+  font-size: 12px;
+  font-weight: bold;
+}
+
+@media (prefers-color-scheme: light) {
+  .island-shell {
+    background: rgba(12, 16, 24, 0.92);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.26);
+  }
+}
