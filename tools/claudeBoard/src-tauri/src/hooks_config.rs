@@ -1,15 +1,21 @@
 use serde_json::{json, Map, Value};
 
-const HOOK_EVENTS: [&str; 5] = [
+const HOOK_EVENTS: [&str; 11] = [
     "TaskCreated",
     "TaskCompleted",
     "PermissionRequest",
     "PermissionDenied",
     "SessionEnd",
+    "UserPromptSubmit",
+    "PreToolUse",
+    "PostConversationTurn",
+    "PreUserInteraction",
+    "Stop",
+    "StopFailure",
 ];
 
-pub fn upsert_hooks(settings_json: &str, dispatch_command: &str) -> String {
-    let mut settings: Value = serde_json::from_str(settings_json).unwrap_or_else(|_| json!({}));
+pub fn upsert_hooks(settings_json: &str, dispatch_command: &str) -> serde_json::Result<String> {
+    let mut settings: Value = serde_json::from_str(settings_json)?;
 
     if !settings.is_object() {
         settings = json!({});
@@ -82,5 +88,5 @@ pub fn upsert_hooks(settings_json: &str, dispatch_command: &str) -> String {
         }
     }
 
-    serde_json::to_string_pretty(&settings).unwrap()
+    Ok(serde_json::to_string_pretty(&settings).unwrap())
 }

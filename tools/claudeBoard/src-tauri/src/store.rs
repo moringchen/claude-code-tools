@@ -11,7 +11,7 @@ pub struct TaskStore {
 }
 
 impl TaskStore {
-    pub fn apply(&mut self, event: HookEvent) {
+    pub fn apply(&mut self, event: HookEvent) -> Option<TaskStatus> {
         // Use session_id only as key for aggregation (one task per session)
         let key = event.session_id.clone();
         let task = self
@@ -40,10 +40,12 @@ impl TaskStore {
         // Update title with latest prompt
         task.title = event.title.clone();
 
+        let previous_status = task.status.clone();
         match event.event_type {
             HookEventType::TaskCreated => {
-                if task.status == TaskStatus::NotStarted {
+                if matches!(task.status, TaskStatus::NotStarted | TaskStatus::Completed) {
                     task.status = TaskStatus::Running;
+                    task.completed_at = None;
                 }
             }
             HookEventType::PermissionRequest => task.status = TaskStatus::NeedsUser,
@@ -52,6 +54,11 @@ impl TaskStore {
                 task.status = TaskStatus::Completed;
                 task.completed_at = Some(event.occurred_at);
             }
+        }
+        if task.status != previous_status {
+            Some(task.status.clone())
+        } else {
+            None
         }
     }
 
@@ -91,21 +98,22 @@ impl TaskStore {
     }
 
     pub fn snapshot(&self) -> TaskSnapshot {
-        // Collect pids that have hook tasks (to filter scanned tasks by pid only)
-        let hook_pids: std::collections::HashSet<u32> =
-            self.hook_tasks.values().map(|task| task.pid).collect();
-
-        let mut tasks = self
+        let has_active_hook_tasks = self
             .hook_tasks
             .values()
-            .cloned()
-            .chain(
-                self.scanned_tasks
-                    .values()
-                    .filter(|task| !hook_pids.contains(&task.pid))
-                    .cloned(),
-            )
-            .collect::<Vec<_>>();
+            .any(|task| task.status != TaskStatus::Completed);
+        let mut tasks = self.hook_tasks.values().cloned().collect::<Vec<_>>();
+
+        if !has_active_hook_tasks {
+            tasks.extend(self.scanned_tasks.values().cloned());
+        }
+        let has_active_tasks = tasks
+            .iter()
+            .any(|task| task.status != TaskStatus::Completed);
+        if has_active_tasks {
+            tasks.retain(|task| task.status != TaskStatus::Completed);
+        }
+
         tasks.sort_by(|left, right| {
             let rank = |status: &TaskStatus| match status {
                 TaskStatus::NeedsUser => 0,

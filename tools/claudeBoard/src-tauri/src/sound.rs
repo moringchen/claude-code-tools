@@ -1,5 +1,17 @@
 use std::path::Path;
+use std::process::Command;
 use tauri::command;
+
+const WAITING_SOUND_PATH: &str = "/Users/moringchen/Downloads/待回复.mp3";
+const COMPLETED_SOUND_PATH: &str = "/Users/moringchen/Downloads/任务完成.mp3";
+
+pub fn sound_path_for_type(sound_type: &str) -> Option<&'static str> {
+    match sound_type {
+        "waiting" => Some(WAITING_SOUND_PATH),
+        "completed" => Some(COMPLETED_SOUND_PATH),
+        _ => None,
+    }
+}
 
 #[command]
 pub fn read_sound_file(path: String) -> Result<Vec<u8>, String> {
@@ -15,6 +27,18 @@ pub fn read_sound_file(path: String) -> Result<Vec<u8>, String> {
             Err(format!("Failed to read sound file: {}", e))
         }
     }
+}
+
+#[command]
+pub fn play_sound_file(sound_type: String) -> Result<(), String> {
+    let path = sound_path_for_type(&sound_type)
+        .ok_or_else(|| format!("Unknown sound type: {sound_type}"))?;
+
+    Command::new("afplay")
+        .arg(path)
+        .spawn()
+        .map(|_| ())
+        .map_err(|error| format!("Failed to play sound file: {error}"))
 }
 
 #[command]

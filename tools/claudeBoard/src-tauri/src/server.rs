@@ -13,7 +13,8 @@ use tower_http::cors::{Any, CorsLayer};
 use crate::{
     model::{HookEvent, HookEventType, TaskSnapshot},
     scan::rebuild_tasks_from_rows,
-    session_meta::get_task_title_by_pid,
+    session_meta::{get_task_title_by_pid, get_task_title_by_session_id},
+    sound::play_sound_file,
     store::TaskStore,
 };
 
@@ -75,12 +76,14 @@ struct ClaudeCodeHookEvent {
 }
 
 fn extract_task_title(event: &ClaudeCodeHookEvent) -> String {
-    // First try to get title from session metadata by pid (name field)
-    let session_title = get_task_title_by_pid(event.pid, event.cwd.as_deref(), &event.title);
-
-    // If session metadata returned a valid title (not empty), use it
-    if !session_title.is_empty() {
+    let session_title = get_task_title_by_session_id(&event.session_id, event.cwd.as_deref(), &event.title);
+    if !session_title.is_empty() && session_title != event.title {
         return session_title;
+    }
+
+    let pid_title = get_task_title_by_pid(event.pid, event.cwd.as_deref(), &event.title);
+    if !pid_title.is_empty() && pid_title != event.title {
+        return pid_title;
     }
 
     // Fallback to prompt-based title extraction
@@ -292,7 +295,13 @@ async fn post_event(
         Some(hook_event) => {
             eprintln!("[claudeBoard] converted to: {:?} for pid {} title {}",
                 hook_event.event_type, hook_event.pid, hook_event.title);
-            state.store.lock().unwrap().apply(hook_event);
+            let changed_status = state.store.lock().unwrap().apply(hook_event);
+            if matches!(changed_status, Some(crate::model::TaskStatus::NeedsUser)) {
+                let _ = play_sound_file("waiting".to_string());
+            }
+            if matches!(changed_status, Some(crate::model::TaskStatus::Completed)) {
+                let _ = play_sound_file("completed".to_string());
+            }
             StatusCode::ACCEPTED
         }
         None => {

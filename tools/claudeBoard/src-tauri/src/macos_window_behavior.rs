@@ -1,3 +1,9 @@
+pub const MACOS_FOREGROUND_WINDOW_LEVEL: i32 = 5;
+pub const MACOS_BACKGROUND_WINDOW_LEVEL: i32 = 0;
+pub const MACOS_COLLECTION_BEHAVIOR_CAN_JOIN_ALL_SPACES: u64 = 1 << 0;
+pub const MACOS_COLLECTION_BEHAVIOR_STATIONARY: u64 = 1 << 4;
+pub const MACOS_COLLECTION_BEHAVIOR_FULL_SCREEN_AUXILIARY: u64 = 1 << 8;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MacosWindowBehavior {
     pub focusable: bool,
@@ -19,6 +25,19 @@ impl OverlayZOrderMode {
             Self::Foreground => Self::Background,
         }
     }
+}
+
+pub fn macos_window_level_for_mode(mode: OverlayZOrderMode) -> i32 {
+    match mode {
+        OverlayZOrderMode::Background => MACOS_BACKGROUND_WINDOW_LEVEL,
+        OverlayZOrderMode::Foreground => MACOS_FOREGROUND_WINDOW_LEVEL,
+    }
+}
+
+pub fn macos_window_collection_behavior() -> u64 {
+    MACOS_COLLECTION_BEHAVIOR_CAN_JOIN_ALL_SPACES
+        | MACOS_COLLECTION_BEHAVIOR_STATIONARY
+        | MACOS_COLLECTION_BEHAVIOR_FULL_SCREEN_AUXILIARY
 }
 
 pub fn overlay_behavior_for_mode(mode: OverlayZOrderMode) -> MacosWindowBehavior {

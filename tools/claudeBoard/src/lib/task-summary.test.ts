@@ -32,20 +32,36 @@ describe("task-summary", () => {
     ]);
 
     expect(summaries).toEqual([
-      "需确认：approve command",
-      "运行中：build frontend",
-      "已完成：write docs",
+      "approve command - 待回复",
+      "build frontend - 进行中",
+      "write docs - 完成",
     ]);
   });
 
-  it("cycles summaries by index", () => {
+  it("uses the most recently changed task for the collapsed title", () => {
     const tasks = [
-      task("1", "running", "first task"),
-      task("2", "running", "second task"),
+      { ...task("1", "needs_user", "older approval"), updatedAt: "2026-04-30T00:00:01Z" },
+      { ...task("2", "running", "newer running"), updatedAt: "2026-04-30T00:00:02Z" },
     ];
 
-    expect(currentIslandSummary(tasks, 0)).toBe("运行中：first task");
-    expect(currentIslandSummary(tasks, 1)).toBe("运行中：second task");
-    expect(currentIslandSummary(tasks, 2)).toBe("运行中：first task");
+    expect(currentIslandSummary(tasks, 0)).toBe("newer running - 进行中");
+  });
+
+  it("ignores the cycle index and keeps the newest changed task visible", () => {
+    const tasks = [
+      { ...task("1", "running", "older task"), updatedAt: "2026-04-30T00:00:01Z" },
+      { ...task("2", "running", "newest task"), updatedAt: "2026-04-30T00:00:02Z" },
+    ];
+
+    expect(currentIslandSummary(tasks, 0)).toBe("newest task - 进行中");
+    expect(currentIslandSummary(tasks, 1)).toBe("newest task - 进行中");
+    expect(currentIslandSummary(tasks, 2)).toBe("newest task - 进行中");
+  });
+
+  it("omits the status label for not-started tasks", () => {
+    const tasks = [{ ...task("1", "not_started", "planned task"), updatedAt: "2026-04-30T00:00:02Z" }];
+
+    expect(currentIslandSummary(tasks, 0)).toBe("planned task");
+    expect(buildIslandSummaries(tasks)).toEqual(["planned task"]);
   });
 });

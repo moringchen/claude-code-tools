@@ -5,9 +5,13 @@ import { focusTask } from "./lib/api";
 import { useSnapshot } from "./lib/use-snapshot";
 
 const startDragging = vi.fn();
+const setSize = vi.fn();
 
 vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({ startDragging }),
+  getCurrentWindow: () => ({ startDragging, setSize }),
+  LogicalSize: class LogicalSize {
+    constructor(public width: number, public height: number) {}
+  },
 }));
 
 vi.mock("./lib/api", () => ({
@@ -49,6 +53,9 @@ describe("App", () => {
 
     render(<App />);
     expect(screen.getByText("当前无任务")).toBeTruthy();
+    expect(screen.queryByText("Test Waiting")).toBeNull();
+    expect(screen.queryByText("Test Completed")).toBeNull();
+    expect(screen.queryByText("Show Logs")).toBeNull();
   });
 
   it("shows a single collapsed task summary", () => {
@@ -58,7 +65,7 @@ describe("App", () => {
     });
 
     render(<App />);
-    expect(screen.getByText("运行中：测试任务")).toBeTruthy();
+    expect(screen.getByText("测试任务 - 进行中")).toBeTruthy();
     expect(screen.queryByRole("list")).toBeNull();
   });
 
@@ -69,14 +76,13 @@ describe("App", () => {
     });
 
     render(<App />);
-    const summaryButton = screen.getByRole("button", { name: "运行中：测试任务" });
+    const summaryButton = screen.getByRole("button", { name: "测试任务 - 进行中" });
     fireEvent.mouseDown(summaryButton, { clientX: 40, clientY: 40 });
     fireEvent.click(summaryButton);
 
     const list = screen.getByRole("list");
     expect(list).toBeTruthy();
     expect(within(list).getByRole("button", { name: /测试任务/ })).toBeTruthy();
-    expect(screen.getByText("Ghostty")).toBeTruthy();
   });
 
   it("starts native dragging after pointer movement passes the threshold", () => {
@@ -86,7 +92,7 @@ describe("App", () => {
     });
 
     render(<App />);
-    const button = screen.getByRole("button", { name: "运行中：测试任务" });
+    const button = screen.getByRole("button", { name: "测试任务 - 进行中" });
     fireEvent.mouseDown(button, { clientX: 10, clientY: 10 });
     fireEvent.mouseMove(button, { clientX: 26, clientY: 10 });
 
@@ -100,7 +106,7 @@ describe("App", () => {
     });
 
     render(<App />);
-    const summaryButton = screen.getByRole("button", { name: "运行中：测试任务" });
+    const summaryButton = screen.getByRole("button", { name: "测试任务 - 进行中" });
     fireEvent.mouseDown(summaryButton, { clientX: 10, clientY: 10 });
     fireEvent.mouseMove(summaryButton, { clientX: 26, clientY: 10 });
     fireEvent.mouseLeave(summaryButton);
@@ -114,20 +120,19 @@ describe("App", () => {
     expect(screen.getByRole("list")).toBeTruthy();
   });
 
-  it("focuses a task when a task row is clicked", () => {
+  it("prevents the WebView default context menu", () => {
     vi.mocked(useSnapshot).mockReturnValue({
       counts: { total: 1, needsUser: 0, completed: 0, running: 1 },
       tasks: [runningTask],
     });
 
     render(<App />);
-    const summaryButton = screen.getByRole("button", { name: "运行中：测试任务" });
-    fireEvent.mouseDown(summaryButton, { clientX: 40, clientY: 40 });
-    fireEvent.click(summaryButton);
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
 
-    fireEvent.click(within(screen.getByRole("list")).getByRole("button", { name: /测试任务/ }));
+    const allowed = document.dispatchEvent(event);
 
-    expect(focusTask).toHaveBeenCalledWith("task-1");
+    expect(allowed).toBe(false);
+    expect(event.defaultPrevented).toBe(true);
   });
 });
 
