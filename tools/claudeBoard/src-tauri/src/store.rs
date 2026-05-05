@@ -12,7 +12,8 @@ pub struct TaskStore {
 
 impl TaskStore {
     pub fn apply(&mut self, event: HookEvent) {
-        let key = format!("{}:{}:{}", event.session_id, event.pid, event.title);
+        // Use session_id only as key for aggregation (one task per session)
+        let key = event.session_id.clone();
         let task = self
             .hook_tasks
             .entry(key.clone())
@@ -21,7 +22,7 @@ impl TaskStore {
                 session_id: event.session_id.clone(),
                 pid: event.pid,
                 title: event.title.clone(),
-                status: TaskStatus::Running,
+                status: TaskStatus::NotStarted,
                 source: "hook".into(),
                 window_target: WindowTarget {
                     host_kind: "unknown".into(),
@@ -36,9 +37,15 @@ impl TaskStore {
             });
 
         task.updated_at = event.occurred_at.clone();
+        // Update title with latest prompt
+        task.title = event.title.clone();
 
         match event.event_type {
-            HookEventType::TaskCreated => task.status = TaskStatus::Running,
+            HookEventType::TaskCreated => {
+                if task.status == TaskStatus::NotStarted {
+                    task.status = TaskStatus::Running;
+                }
+            }
             HookEventType::PermissionRequest => task.status = TaskStatus::NeedsUser,
             HookEventType::PermissionDenied => task.status = TaskStatus::NeedsUser,
             HookEventType::TaskCompleted | HookEventType::SessionEnd => {
@@ -48,26 +55,45 @@ impl TaskStore {
         }
     }
 
-    pub fn replace_scanned_tasks(&mut self, tasks: Vec<TaskCard>) {
+    pub fn replace_scanned_tasks(&mut self, tasks: Vec<TaskCard>, alive_pids: &[u32]) {
         let previous_count = self.scanned_tasks.len();
         let next_count = tasks.len();
+        let alive_pids_set: std::collections::HashSet<u32> = alive_pids.iter().copied().collect();
+
         eprintln!(
-            "[claudeBoard] store replace_scanned_tasks previous_count={} next_count={}",
-            previous_count, next_count
+            "[claudeBoard] store replace_scanned_tasks previous_count={} next_count={} alive_pids={:?}",
+            previous_count, next_count, alive_pids
         );
 
+        // Update scanned tasks - only keep tasks whose pid is alive
         self.scanned_tasks = tasks
             .into_iter()
+            .filter(|task| alive_pids_set.contains(&task.pid))
             .map(|task| (task.task_id.clone(), task))
             .collect();
+
+        // Also clean up hook_tasks - remove tasks whose process has exited
+        let hook_pids_to_remove: Vec<String> = self
+            .hook_tasks
+            .values()
+            .filter(|task| {
+                // Keep completed tasks (they finished normally)
+                // But remove running/needs_user tasks whose process died
+                task.status != TaskStatus::Completed && !alive_pids_set.contains(&task.pid)
+            })
+            .map(|task| task.task_id.clone())
+            .collect();
+
+        for pid in hook_pids_to_remove {
+            eprintln!("[claudeBoard] removing dead hook task pid={}", pid);
+            self.hook_tasks.remove(&pid);
+        }
     }
 
     pub fn snapshot(&self) -> TaskSnapshot {
-        let hook_session_pids = self
-            .hook_tasks
-            .values()
-            .map(|task| (task.session_id.as_str(), task.pid))
-            .collect::<std::collections::HashSet<_>>();
+        // Collect pids that have hook tasks (to filter scanned tasks by pid only)
+        let hook_pids: std::collections::HashSet<u32> =
+            self.hook_tasks.values().map(|task| task.pid).collect();
 
         let mut tasks = self
             .hook_tasks
@@ -76,9 +102,7 @@ impl TaskStore {
             .chain(
                 self.scanned_tasks
                     .values()
-                    .filter(|task| {
-                        !hook_session_pids.contains(&(task.session_id.as_str(), task.pid))
-                    })
+                    .filter(|task| !hook_pids.contains(&task.pid))
                     .cloned(),
             )
             .collect::<Vec<_>>();
@@ -86,8 +110,9 @@ impl TaskStore {
             let rank = |status: &TaskStatus| match status {
                 TaskStatus::NeedsUser => 0,
                 TaskStatus::Running => 1,
-                TaskStatus::Completed => 2,
-                TaskStatus::IdleOrUnknown => 3,
+                TaskStatus::NotStarted => 2,
+                TaskStatus::Completed => 3,
+                TaskStatus::IdleOrUnknown => 4,
             };
 
             rank(&left.status)
@@ -103,7 +128,7 @@ impl TaskStore {
                     TaskStatus::NeedsUser => counts.needs_user += 1,
                     TaskStatus::Completed => counts.completed += 1,
                     TaskStatus::Running => counts.running += 1,
-                    TaskStatus::IdleOrUnknown => {}
+                    TaskStatus::NotStarted | TaskStatus::IdleOrUnknown => {}
                 }
                 counts
             });

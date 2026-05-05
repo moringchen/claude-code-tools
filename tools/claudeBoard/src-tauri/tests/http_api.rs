@@ -19,20 +19,22 @@ async fn ingests_events_and_returns_snapshot() {
     let store = Arc::new(Mutex::new(TaskStore::default()));
     let app = build_router(store, || Ok(Vec::new()), || "2026-04-24T17:00:00Z".to_string());
 
-    let create = HookEvent {
-        event_type: HookEventType::TaskCreated,
-        session_id: "session-1".into(),
-        pid: 321,
-        title: "Review PR".into(),
-        occurred_at: "2026-04-24T17:00:00Z".into(),
-    };
+    // Use ClaudeCodeHookEvent format (matching what Claude Code hooks send)
+    let create_event = serde_json::json!({
+        "hook_event_name": "TaskCreated",
+        "session_id": "session-1",
+        "claude_board_pid": 321,
+        "claude_board_title": "Review PR",
+        "claude_board_occurred_at": "2026-04-24T17:00:00Z",
+        "cwd": "/workspace"
+    });
 
     let response = app
         .clone()
         .oneshot(
             Request::post("/events")
                 .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_vec(&create).unwrap()))
+                .body(Body::from(serde_json::to_vec(&create_event).unwrap()))
                 .unwrap(),
         )
         .await
@@ -66,20 +68,22 @@ async fn refresh_merges_scanned_tasks_and_preserves_hook_precedence() {
         || "2026-04-24T18:00:00Z".to_string(),
     );
 
-    let create = HookEvent {
-        event_type: HookEventType::TaskCreated,
-        session_id: "session-1".into(),
-        pid: 321,
-        title: "Review PR".into(),
-        occurred_at: "2026-04-24T17:00:00Z".into(),
-    };
+    // Use ClaudeCodeHookEvent format (matching what Claude Code hooks send)
+    let create_event = serde_json::json!({
+        "hook_event_name": "TaskCreated",
+        "session_id": "session-1",
+        "claude_board_pid": 321,
+        "claude_board_title": "Review PR",
+        "claude_board_occurred_at": "2026-04-24T17:00:00Z",
+        "cwd": "/workspace"
+    });
 
     let response = app
         .clone()
         .oneshot(
             Request::post("/events")
                 .header("content-type", "application/json")
-                .body(Body::from(serde_json::to_vec(&create).unwrap()))
+                .body(Body::from(serde_json::to_vec(&create_event).unwrap()))
                 .unwrap(),
         )
         .await
@@ -108,7 +112,10 @@ async fn refresh_merges_scanned_tasks_and_preserves_hook_precedence() {
     let snapshot: TaskSnapshot = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(snapshot.counts.total, 2);
-    assert_eq!(snapshot.counts.running, 2);
+    // hook task session-1 is Running (received TaskCreated event)
+    // scanned task session-2 is NotStarted (no hook events yet)
+    assert_eq!(snapshot.counts.running, 1);
+    assert_eq!(snapshot.counts.completed, 0);
     assert_eq!(snapshot.tasks.len(), 2);
     assert!(snapshot
         .tasks

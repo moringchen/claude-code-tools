@@ -1,8 +1,11 @@
+export type NotificationSoundStyle = "classic" | "soft" | "bright";
+
 export type Preferences = {
   notifyCompleted: boolean;
   notifyNeedsUser: boolean;
   speakCompleted: boolean;
   speakNeedsUser: boolean;
+  notificationSoundStyle?: NotificationSoundStyle;
 };
 
 export const defaultPreferences: Preferences = {

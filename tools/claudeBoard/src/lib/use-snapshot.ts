@@ -21,9 +21,17 @@ export function useSnapshot() {
       try {
         const nextSnapshot = await fetchSnapshot();
         if (active) {
+          console.log("[use-snapshot] fetched:", {
+            total: nextSnapshot.counts.total,
+            needsUser: nextSnapshot.counts.needsUser,
+            completed: nextSnapshot.counts.completed,
+            running: nextSnapshot.counts.running,
+          });
           setSnapshot(nextSnapshot);
         }
-      } catch {}
+      } catch (err) {
+        console.error("[use-snapshot] fetch error:", err);
+      }
     };
 
     void poll();

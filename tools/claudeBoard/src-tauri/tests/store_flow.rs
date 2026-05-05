@@ -48,24 +48,27 @@ fn replace_scanned_tasks_prefers_hook_tasks_for_matching_session_and_pid() {
         occurred_at: "2026-04-24T16:05:00Z".into(),
     });
 
-    store.replace_scanned_tasks(vec![TaskCard {
-        task_id: "scan:session-dup:201".into(),
-        session_id: "session-dup".into(),
-        pid: 201,
-        title: "Recovered duplicate session".into(),
-        status: TaskStatus::Running,
-        source: "scan_recovered".into(),
-        window_target: WindowTarget {
-            host_kind: "terminal".into(),
-            app: "Ghostty".into(),
-            descriptor: "ghostty-main".into(),
-            tab_id: None,
-            pane_id: None,
-        },
-        started_at: "2026-04-24T16:04:00Z".into(),
-        updated_at: "2026-04-24T16:04:00Z".into(),
-        completed_at: None,
-    }]);
+    store.replace_scanned_tasks(
+        vec![TaskCard {
+            task_id: "scan:session-dup:201".into(),
+            session_id: "session-dup".into(),
+            pid: 201,
+            title: "Recovered duplicate session".into(),
+            status: TaskStatus::Running,
+            source: "scan_recovered".into(),
+            window_target: WindowTarget {
+                host_kind: "terminal".into(),
+                app: "Ghostty".into(),
+                descriptor: "ghostty-main".into(),
+                tab_id: None,
+                pane_id: None,
+            },
+            started_at: "2026-04-24T16:04:00Z".into(),
+            updated_at: "2026-04-24T16:04:00Z".into(),
+            completed_at: None,
+        }],
+        &[201],
+    );
 
     let snapshot = store.snapshot();
 

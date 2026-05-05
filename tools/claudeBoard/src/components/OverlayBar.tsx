@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { MouseEvent as ReactMouseEvent } from "react";
+import { markUserInteraction } from "../lib/sound";
 
 type OverlayBarProps = {
   summary: string;
@@ -21,6 +22,9 @@ export function OverlayBar({ summary, isExpanded, onToggle, onDragStart }: Overl
   const dragStateRef = useRef<DragState | null>(null);
 
   const handleMouseDown = (event: ReactMouseEvent<HTMLButtonElement>) => {
+    // Mark user interaction for audio playback
+    markUserInteraction();
+
     dragStateRef.current = {
       startX: event.clientX,
       startY: event.clientY,

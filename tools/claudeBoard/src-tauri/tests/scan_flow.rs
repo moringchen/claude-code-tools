@@ -2,7 +2,7 @@ use claude_board::scan::{parse_scan_row, rebuild_tasks_from_rows};
 
 #[test]
 fn parse_scan_row_accepts_plain_claude_command() {
-    let row = parse_scan_row("123 /usr/local/bin/claude");
+    let row = parse_scan_row("123 0 S /usr/local/bin/claude");
 
     assert_eq!(
         row.as_deref(),
@@ -12,7 +12,7 @@ fn parse_scan_row_accepts_plain_claude_command() {
 
 #[test]
 fn parse_scan_row_accepts_claude_code_command() {
-    let row = parse_scan_row("456 /opt/homebrew/bin/claude code");
+    let row = parse_scan_row("456 0 S /opt/homebrew/bin/claude code");
 
     assert_eq!(
         row.as_deref(),
@@ -22,7 +22,7 @@ fn parse_scan_row_accepts_claude_code_command() {
 
 #[test]
 fn parse_scan_row_accepts_windows_claude_executable() {
-    let row = parse_scan_row(r#"457 claude.exe"#);
+    let row = parse_scan_row(r#"457 0 S claude.exe"#);
 
     assert_eq!(
         row.as_deref(),
@@ -32,7 +32,7 @@ fn parse_scan_row_accepts_windows_claude_executable() {
 
 #[test]
 fn parse_scan_row_accepts_windows_claude_path_with_arguments() {
-    let row = parse_scan_row(r#"458 C:\\Users\\me\\AppData\\Local\\Programs\\Claude\\claude.exe code"#);
+    let row = parse_scan_row(r#"458 0 S C:\\Users\\me\\AppData\\Local\\Programs\\Claude\\claude.exe code"#);
 
     assert_eq!(
         row.as_deref(),
@@ -42,38 +42,38 @@ fn parse_scan_row_accepts_windows_claude_path_with_arguments() {
 
 #[test]
 fn parse_scan_row_rejects_claude_board_daemon() {
-    assert_eq!(parse_scan_row("789 claude_boardd"), None);
+    assert_eq!(parse_scan_row("789 0 S claude_boardd"), None);
 }
 
 #[test]
 fn parse_scan_row_rejects_claude_board_path() {
     assert_eq!(
-        parse_scan_row("790 /Users/me/tools/claudeBoard/src-tauri/target/debug/claude"),
+        parse_scan_row("790 0 S /Users/me/tools/claudeBoard/src-tauri/target/debug/claude"),
         None
     );
 }
 
 #[test]
 fn parse_scan_row_rejects_unrelated_claude_substring() {
-    assert_eq!(parse_scan_row("791 /usr/bin/notclaude helper"), None);
+    assert_eq!(parse_scan_row("791 0 S /usr/bin/notclaude helper"), None);
 }
 
 #[test]
 fn parse_scan_row_rejects_windows_unrelated_claude_substring() {
-    assert_eq!(parse_scan_row(r#"792 C:\\tools\\notclaude.exe helper"#), None);
+    assert_eq!(parse_scan_row(r#"792 0 S C:\\tools\\notclaude.exe helper"#), None);
 }
 
 #[test]
 fn parse_scan_row_rejects_windows_claude_board_path() {
     assert_eq!(
-        parse_scan_row(r#"793 C:\\workspace\\claudeBoard\\target\\debug\\claude.exe"#),
+        parse_scan_row(r#"793 0 S C:\\workspace\\claudeBoard\\target\\debug\\claude.exe"#),
         None
     );
 }
 
 #[test]
 fn parse_scan_row_accepts_claude_with_claude_board_argument() {
-    let row = parse_scan_row(r#"794 claude --cwd C:\\workspace\\claudeBoard"#);
+    let row = parse_scan_row(r#"794 0 S claude --cwd C:\\workspace\\claudeBoard"#);
 
     assert_eq!(
         row.as_deref(),
@@ -115,13 +115,13 @@ fn rebuilds_tasks_for_all_local_claude_code_sessions() {
     assert_eq!(tasks[0].task_id, "scan:session-1:901");
     assert_eq!(tasks[0].session_id, "session-1");
     assert_eq!(tasks[0].pid, 901);
-    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::Running);
+    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::NotStarted);
     assert_eq!(tasks[0].source, "scan_recovered");
 
     assert_eq!(tasks[1].task_id, "scan:session-2:902");
     assert_eq!(tasks[1].session_id, "session-2");
     assert_eq!(tasks[1].pid, 902);
-    assert_eq!(tasks[1].status, claude_board::model::TaskStatus::Running);
+    assert_eq!(tasks[1].status, claude_board::model::TaskStatus::NotStarted);
     assert_eq!(tasks[1].source, "scan_recovered");
 }
 
@@ -138,7 +138,7 @@ fn rebuilds_tmux_and_ghostty_context_from_scan_rows() {
 
     assert_eq!(tasks[0].task_id, "scan:session-1:901");
     assert_eq!(tasks[0].pid, 901);
-    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::Running);
+    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::NotStarted);
     assert_eq!(tasks[0].source, "scan_recovered");
     assert_eq!(tasks[0].window_target.host_kind, "terminal");
     assert_eq!(tasks[0].window_target.app, "Ghostty");
@@ -155,7 +155,7 @@ fn rebuilds_tmux_and_ghostty_context_from_scan_rows() {
 }
 
 #[test]
-fn rebuilds_windows_scan_rows_into_running_tasks() {
+fn rebuilds_windows_scan_rows_into_not_started_tasks() {
     let rows = vec!["session-win\t903\tworkspace\tTerminal\tterminal\t\t\tclaude.exe code".to_string()];
 
     let tasks = rebuild_tasks_from_rows(&rows, "2026-04-24T17:30:00Z");
@@ -163,6 +163,6 @@ fn rebuilds_windows_scan_rows_into_running_tasks() {
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks[0].task_id, "scan:session-win:903");
     assert_eq!(tasks[0].title, "claude.exe code");
-    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::Running);
+    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::NotStarted);
     assert_eq!(tasks[0].source, "scan_recovered");
 }

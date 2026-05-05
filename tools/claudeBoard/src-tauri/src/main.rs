@@ -1,7 +1,48 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use claude_board::window_position::{default_overlay_position, selected_monitor_index};
-use tauri::{LogicalPosition, Manager};
+use tauri::{LogicalPosition, Manager, WindowEvent};
+
+#[cfg(target_os = "macos")]
+fn set_window_level(window: &tauri::WebviewWindow, level: i32) -> tauri::Result<()> {
+    use objc::runtime::Object;
+    use objc::{msg_send, sel, sel_impl};
+    let ns_window = window.ns_window()?;
+    unsafe {
+        let _: () = msg_send![ns_window as *mut Object, setLevel: level];
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn set_window_hides_on_deactivate(window: &tauri::WebviewWindow, hides: bool) -> tauri::Result<()> {
+    use objc::runtime::Object;
+    use objc::{msg_send, sel, sel_impl};
+    let ns_window = window.ns_window()?;
+    unsafe {
+        let _: () = msg_send![ns_window as *mut Object, setHidesOnDeactivate: hides];
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn setup_always_visible_window(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    // Ensure window never hides on deactivate
+    set_window_hides_on_deactivate(window, false)?;
+    // Set initial level to floating so it's visible
+    set_window_level(window, 5)?;
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_window_level(_window: &tauri::WebviewWindow, _level: i32) -> tauri::Result<()> {
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn setup_always_visible_window(_window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    Ok(())
+}
 
 fn apply_overlay_position(app: &tauri::AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
@@ -123,6 +164,7 @@ fn apply_overlay_position(app: &tauri::AppHandle) -> tauri::Result<()> {
 
 fn main() {
     tauri::Builder::default()
+        .invoke_handler(tauri::generate_handler![claude_board::sound::read_sound_file, claude_board::sound::log_from_frontend])
         .setup(|app| {
             let app_handle = app.handle().clone();
             app.run_on_main_thread(move || {
@@ -130,6 +172,35 @@ fn main() {
                     eprintln!("[claudeBoard] apply_overlay_position failed: {error}");
                 }
             })?;
+
+            // Set up window event handlers
+            // Window stays fixed in position and always visible, only z-index changes
+            if let Some(window) = app.get_webview_window("main") {
+                // Ensure window never hides/minimizes when deactivated
+                let _ = setup_always_visible_window(&window);
+
+                let window_clone = window.clone();
+                window.on_window_event(move |event| {
+                    #[cfg(target_os = "macos")]
+                    match event {
+                        WindowEvent::Focused(true) => {
+                            eprintln!("[claudeBoard] window focused - raising z-index");
+                            // Raise window level to floating when focused
+                            let _ = set_window_level(&window_clone, 5);
+                        }
+                        WindowEvent::Focused(false) => {
+                            eprintln!("[claudeBoard] window unfocused - keeping visible at background level");
+                            // Keep window at a level where it remains visible but behind other windows
+                            // Using level 3 (torn-off menu level) keeps it visible but below normal windows
+                            let _ = set_window_level(&window_clone, 3);
+                            // Ensure window stays visible and doesn't hide
+                            let _ = window_clone.show();
+                        }
+                        _ => {}
+                    }
+                });
+            }
+
             Ok(())
         })
         .run(tauri::generate_context!())

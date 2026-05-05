@@ -1,4 +1,4 @@
-export type TaskStatus = "running" | "needs_user" | "completed" | "idle_or_unknown";
+export type TaskStatus = "not_started" | "running" | "needs_user" | "completed" | "idle_or_unknown";
 export type TaskSource = "hook" | "scan_recovered";
 
 export type WindowTarget = {
@@ -32,8 +32,9 @@ export type TaskCounts = {
 const statusRank: Record<TaskStatus, number> = {
   needs_user: 0,
   running: 1,
-  completed: 2,
-  idle_or_unknown: 3,
+  not_started: 2,
+  completed: 3,
+  idle_or_unknown: 4,
 };
 
 export function sortTasks(tasks: TaskCard[]): TaskCard[] {

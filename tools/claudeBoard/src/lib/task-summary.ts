@@ -1,6 +1,7 @@
 import { type TaskCard, type TaskStatus } from "./task-model";
 
 const statusLabel: Record<TaskStatus, string> = {
+  not_started: "未开始",
   needs_user: "需确认",
   running: "运行中",
   completed: "已完成",
@@ -10,8 +11,9 @@ const statusLabel: Record<TaskStatus, string> = {
 const summaryRank: Record<TaskStatus, number> = {
   needs_user: 0,
   running: 1,
-  completed: 2,
-  idle_or_unknown: 3,
+  not_started: 2,
+  completed: 3,
+  idle_or_unknown: 4,
 };
 
 export function buildIslandSummaries(tasks: TaskCard[]): string[] {
@@ -23,7 +25,7 @@ export function buildIslandSummaries(tasks: TaskCard[]): string[] {
       }
       return right.updatedAt.localeCompare(left.updatedAt);
     })
-    .map((task) => `${statusLabel[task.status]}：${task.title}`);
+    .map((task) => `${task.title} ${statusLabel[task.status]}`);
 }
 
 export function currentIslandSummary(tasks: TaskCard[], index: number): string {
