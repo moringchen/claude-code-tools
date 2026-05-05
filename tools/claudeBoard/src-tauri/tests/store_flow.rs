@@ -222,3 +222,33 @@ fn replace_scanned_tasks_prefers_hook_tasks_for_matching_session_and_pid() {
     assert_eq!(snapshot.tasks[0].session_id, "session-dup");
     assert_eq!(snapshot.tasks[0].pid, 201);
 }
+
+#[test]
+fn task_created_reopens_completed_session_as_running() {
+    let mut store = TaskStore::default();
+
+    store.apply(HookEvent {
+        event_type: HookEventType::TaskCompleted,
+        session_id: "session-reused".into(),
+        pid: 701,
+        title: "Previous turn".into(),
+        occurred_at: "2026-04-24T16:00:00Z".into(),
+    });
+    let transition = store.apply(HookEvent {
+        event_type: HookEventType::TaskCreated,
+        session_id: "session-reused".into(),
+        pid: 701,
+        title: "Next turn".into(),
+        occurred_at: "2026-04-24T16:01:00Z".into(),
+    });
+
+    let snapshot = store.snapshot();
+
+    assert_eq!(transition, Some(TaskStatus::Running));
+    assert_eq!(snapshot.counts.total, 1);
+    assert_eq!(snapshot.counts.running, 1);
+    assert_eq!(snapshot.counts.completed, 0);
+    assert_eq!(snapshot.tasks[0].status, TaskStatus::Running);
+    assert_eq!(snapshot.tasks[0].title, "Next turn");
+    assert_eq!(snapshot.tasks[0].completed_at, None);
+}

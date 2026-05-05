@@ -43,8 +43,9 @@ impl TaskStore {
         let previous_status = task.status.clone();
         match event.event_type {
             HookEventType::TaskCreated => {
-                if task.status == TaskStatus::NotStarted {
+                if matches!(task.status, TaskStatus::NotStarted | TaskStatus::Completed) {
                     task.status = TaskStatus::Running;
+                    task.completed_at = None;
                 }
             }
             HookEventType::PermissionRequest => task.status = TaskStatus::NeedsUser,
