@@ -41,7 +41,8 @@ pub fn ensure_hook_setup_in_home(user_home: &Path) -> io::Result<HookPaths> {
     make_executable_if_needed(&dispatch_script_path)?;
 
     let existing_settings = fs::read_to_string(&settings_path).unwrap_or_else(|_| "{}".to_string());
-    let updated_settings = upsert_hooks(&existing_settings, &dispatch_script_path.to_string_lossy());
+    let updated_settings = upsert_hooks(&existing_settings, &dispatch_script_path.to_string_lossy())
+        .map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     fs::write(&settings_path, updated_settings)?;
 
     eprintln!(

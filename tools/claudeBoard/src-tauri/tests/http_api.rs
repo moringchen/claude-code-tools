@@ -111,22 +111,15 @@ async fn refresh_merges_scanned_tasks_and_preserves_hook_precedence() {
         .unwrap();
     let snapshot: TaskSnapshot = serde_json::from_slice(&body).unwrap();
 
-    assert_eq!(snapshot.counts.total, 2);
-    // hook task session-1 is Running (received TaskCreated event)
-    // scanned task session-2 is NotStarted (no hook events yet)
+    assert_eq!(snapshot.counts.total, 1);
+    // hook task session-1 is Running (received TaskCreated event); scanned-only rows are hidden once hook tasks exist
     assert_eq!(snapshot.counts.running, 1);
     assert_eq!(snapshot.counts.completed, 0);
-    assert_eq!(snapshot.tasks.len(), 2);
+    assert_eq!(snapshot.tasks.len(), 1);
     assert!(snapshot
         .tasks
         .iter()
         .any(|task| task.session_id == "session-1" && task.pid == 321 && task.source == "hook"));
-    assert!(snapshot.tasks.iter().any(|task| {
-        task.session_id == "session-2"
-            && task.pid == 654
-            && task.source == "scan_recovered"
-            && task.title == "Draft spec"
-    }));
     assert_eq!(
         snapshot
             .tasks

@@ -9,6 +9,7 @@ use claude_board::{
     model::{HookEvent, HookEventType},
     scan::scan_and_filter_rows,
     server::{build_router, refresh_scan},
+    startup_hooks::ensure_hook_setup,
     store::TaskStore,
 };
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
@@ -19,6 +20,10 @@ fn main() {
 }
 
 async fn async_main() {
+    if let Err(error) = ensure_hook_setup() {
+        eprintln!("[claudeBoard] daemon hook setup failed: {error}");
+    }
+
     let store = Arc::new(Mutex::new(TaskStore::default()));
 
     // Load and replay buffered events first

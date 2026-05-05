@@ -2,10 +2,10 @@ import { type TaskCard, type TaskStatus } from "./task-model";
 
 const statusLabel: Record<TaskStatus, string> = {
   not_started: "未开始",
-  needs_user: "需确认",
-  running: "运行中",
-  completed: "已完成",
-  idle_or_unknown: "任务",
+  needs_user: "待回复",
+  running: "进行中",
+  completed: "完成",
+  idle_or_unknown: "空闲",
 };
 
 const summaryRank: Record<TaskStatus, number> = {
@@ -16,6 +16,14 @@ const summaryRank: Record<TaskStatus, number> = {
   idle_or_unknown: 4,
 };
 
+function titleWithStatus(task: TaskCard): string {
+  if (task.status === "not_started") {
+    return task.title;
+  }
+
+  return `${task.title} - ${statusLabel[task.status]}`;
+}
+
 export function buildIslandSummaries(tasks: TaskCard[]): string[] {
   return [...tasks]
     .sort((left, right) => {
@@ -25,15 +33,14 @@ export function buildIslandSummaries(tasks: TaskCard[]): string[] {
       }
       return right.updatedAt.localeCompare(left.updatedAt);
     })
-    .map((task) => `${task.title} ${statusLabel[task.status]}`);
+    .map(titleWithStatus);
 }
 
-export function currentIslandSummary(tasks: TaskCard[], index: number): string {
-  const summaries = buildIslandSummaries(tasks);
-  if (summaries.length === 0) {
+export function currentIslandSummary(tasks: TaskCard[], _index: number): string {
+  if (tasks.length === 0) {
     return "当前无任务";
   }
 
-  const currentIndex = ((index % summaries.length) + summaries.length) % summaries.length;
-  return summaries[currentIndex];
+  const [latestTask] = [...tasks].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+  return titleWithStatus(latestTask);
 }

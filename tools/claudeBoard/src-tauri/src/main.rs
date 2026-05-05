@@ -1,7 +1,12 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use claude_board::window_position::{default_overlay_position, selected_monitor_index};
-use tauri::{LogicalPosition, Manager, WindowEvent};
+use claude_board::{
+    macos_window_behavior::{
+        macos_window_collection_behavior, macos_window_level_for_mode, OverlayZOrderMode,
+    },
+    window_position::{default_overlay_position, selected_monitor_index},
+};
+use tauri::{LogicalPosition, Manager, RunEvent, WindowEvent};
 
 #[cfg(target_os = "macos")]
 fn set_window_level(window: &tauri::WebviewWindow, level: i32) -> tauri::Result<()> {
@@ -26,11 +31,44 @@ fn set_window_hides_on_deactivate(window: &tauri::WebviewWindow, hides: bool) ->
 }
 
 #[cfg(target_os = "macos")]
-fn setup_always_visible_window(window: &tauri::WebviewWindow) -> tauri::Result<()> {
-    // Ensure window never hides on deactivate
+fn set_window_can_hide(window: &tauri::WebviewWindow, can_hide: bool) -> tauri::Result<()> {
+    use objc::runtime::Object;
+    use objc::{msg_send, sel, sel_impl};
+    let ns_window = window.ns_window()?;
+    unsafe {
+        let _: () = msg_send![ns_window as *mut Object, setCanHide: can_hide];
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn set_window_collection_behavior(window: &tauri::WebviewWindow, behavior: u64) -> tauri::Result<()> {
+    use objc::runtime::Object;
+    use objc::{msg_send, sel, sel_impl};
+    let ns_window = window.ns_window()?;
+    unsafe {
+        let _: () = msg_send![ns_window as *mut Object, setCollectionBehavior: behavior];
+    }
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn keep_window_visible_when_inactive(window: &tauri::WebviewWindow) -> tauri::Result<()> {
     set_window_hides_on_deactivate(window, false)?;
-    // Set initial level to floating so it's visible
-    set_window_level(window, 5)?;
+    set_window_can_hide(window, false)?;
+    set_window_collection_behavior(window, macos_window_collection_behavior())?;
+    Ok(())
+}
+
+#[cfg(target_os = "macos")]
+fn setup_always_visible_window(window: &tauri::WebviewWindow) -> tauri::Result<()> {
+    keep_window_visible_when_inactive(window)?;
+    set_window_level(window, macos_window_level_for_mode(OverlayZOrderMode::Foreground))?;
+    Ok(())
+}
+
+#[cfg(not(target_os = "macos"))]
+fn keep_window_visible_when_inactive(_window: &tauri::WebviewWindow) -> tauri::Result<()> {
     Ok(())
 }
 
@@ -164,7 +202,11 @@ fn apply_overlay_position(app: &tauri::AppHandle) -> tauri::Result<()> {
 
 fn main() {
     tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![claude_board::sound::read_sound_file, claude_board::sound::log_from_frontend])
+        .invoke_handler(tauri::generate_handler![
+            claude_board::sound::read_sound_file,
+            claude_board::sound::play_sound_file,
+            claude_board::sound::log_from_frontend
+        ])
         .setup(|app| {
             let app_handle = app.handle().clone();
             app.run_on_main_thread(move || {
@@ -186,14 +228,12 @@ fn main() {
                         WindowEvent::Focused(true) => {
                             eprintln!("[claudeBoard] window focused - raising z-index");
                             // Raise window level to floating when focused
-                            let _ = set_window_level(&window_clone, 5);
+                            let _ = set_window_level(&window_clone, macos_window_level_for_mode(OverlayZOrderMode::Foreground));
                         }
                         WindowEvent::Focused(false) => {
                             eprintln!("[claudeBoard] window unfocused - keeping visible at background level");
-                            // Keep window at a level where it remains visible but behind other windows
-                            // Using level 3 (torn-off menu level) keeps it visible but below normal windows
-                            let _ = set_window_level(&window_clone, 3);
-                            // Ensure window stays visible and doesn't hide
+                            let _ = set_window_level(&window_clone, macos_window_level_for_mode(OverlayZOrderMode::Background));
+                            let _ = keep_window_visible_when_inactive(&window_clone);
                             let _ = window_clone.show();
                         }
                         _ => {}
@@ -203,6 +243,16 @@ fn main() {
 
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("failed to run claudeBoard window");
+        .build(tauri::generate_context!())
+        .expect("failed to build claudeBoard window")
+        .run(|app_handle, event| {
+            #[cfg(target_os = "macos")]
+            if let RunEvent::Reopen { .. } = event {
+                if let Some(window) = app_handle.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                    let _ = set_window_level(&window, macos_window_level_for_mode(OverlayZOrderMode::Foreground));
+                }
+            }
+        });
 }
