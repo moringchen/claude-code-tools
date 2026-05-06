@@ -1,19 +1,77 @@
 use std::collections::HashMap;
 
+use crate::event_log::append_event_log;
 use crate::model::{
-    HookEvent, HookEventType, SnapshotCounts, TaskCard, TaskSnapshot, TaskStatus, WindowTarget,
+    DebugSnapshot, HookDebugEntry, HookEvent, HookEventType, NotificationEvent,
+    NotificationSoundType, ScanDebugSnapshot, SessionRecord, SnapshotCounts, TaskCard,
+    TaskLiveness, TaskSnapshot, TaskStatus, WindowTarget,
 };
+
+const MAX_HOOK_DEBUG_EVENTS: usize = 100;
 
 #[derive(Default)]
 pub struct TaskStore {
     hook_tasks: HashMap<String, TaskCard>,
     scanned_tasks: HashMap<String, TaskCard>,
+    session_records: HashMap<String, SessionRecord>,
+    closed_sessions: HashMap<String, String>,
+    pending_notifications: Vec<NotificationEvent>,
+    next_notification_id: u64,
+    recent_hook_events: Vec<HookDebugEntry>,
+    latest_scan: ScanDebugSnapshot,
 }
 
 impl TaskStore {
+    pub fn apply_debug(&mut self, event: HookEvent, debug_entry: HookDebugEntry) -> Option<TaskStatus> {
+        self.push_hook_debug_entry(debug_entry);
+        self.apply(event)
+    }
+
+    pub fn record_filtered_hook_event(&mut self, debug_entry: HookDebugEntry) {
+        self.push_hook_debug_entry(debug_entry);
+    }
+
+    pub fn replace_scanned_tasks_with_debug(
+        &mut self,
+        tasks: Vec<TaskCard>,
+        alive_pids: &[u32],
+        occurred_at: &str,
+        debug: ScanDebugSnapshot,
+    ) {
+        self.latest_scan = debug;
+        self.replace_scanned_tasks(tasks, alive_pids, occurred_at);
+    }
+
+    pub fn debug_snapshot(&self) -> DebugSnapshot {
+        DebugSnapshot {
+            snapshot: self.snapshot(),
+            recent_hook_events: self.recent_hook_events.clone(),
+            latest_scan: self.latest_scan.clone(),
+        }
+    }
+
     pub fn apply(&mut self, event: HookEvent) -> Option<TaskStatus> {
         // Use session_id only as key for aggregation (one task per session)
-        let key = event.session_id.clone();
+        let key = event
+            .agent_id
+            .as_ref()
+            .map(|agent_id| format!("{}:{agent_id}", event.session_id))
+            .unwrap_or_else(|| event.session_id.clone());
+
+        if matches!(event.event_type, HookEventType::SessionEnd)
+            || (matches!(event.event_type, HookEventType::TaskCompleted)
+                && event.agent_id.is_some()
+                && !self.closed_sessions.contains_key(&event.session_id))
+        {
+            self.hook_tasks.remove(&key);
+            self.scanned_tasks
+                .retain(|_, task| task.session_id != event.session_id);
+            self.session_records.remove(&event.session_id);
+            self.closed_sessions
+                .insert(event.session_id.clone(), event.occurred_at.clone());
+            return None;
+        }
+
         let task = self
             .hook_tasks
             .entry(key.clone())
@@ -34,35 +92,89 @@ impl TaskStore {
                 started_at: event.occurred_at.clone(),
                 updated_at: event.occurred_at.clone(),
                 completed_at: None,
+                liveness: TaskLiveness::Alive,
+                removed_at: None,
+                removed_reason: None,
             });
 
         task.updated_at = event.occurred_at.clone();
-        // Update title with latest prompt
+        task.liveness = TaskLiveness::Alive;
+        task.removed_at = None;
+        task.removed_reason = None;
         task.title = event.title.clone();
 
         let previous_status = task.status.clone();
         match event.event_type {
             HookEventType::TaskCreated => {
-                if matches!(task.status, TaskStatus::NotStarted | TaskStatus::Completed) {
+                if matches!(
+                    task.status,
+                    TaskStatus::NotStarted | TaskStatus::NeedsUser | TaskStatus::Completed
+                ) {
                     task.status = TaskStatus::Running;
                     task.completed_at = None;
                 }
             }
             HookEventType::PermissionRequest => task.status = TaskStatus::NeedsUser,
-            HookEventType::PermissionDenied => task.status = TaskStatus::NeedsUser,
-            HookEventType::TaskCompleted | HookEventType::SessionEnd => {
+            HookEventType::PermissionDenied => {
+                task.status = TaskStatus::Running;
+                task.completed_at = None;
+            }
+            HookEventType::TaskCompleted => {
                 task.status = TaskStatus::Completed;
-                task.completed_at = Some(event.occurred_at);
+                task.completed_at = Some(event.occurred_at.clone());
+                self.scanned_tasks
+                    .retain(|_, scanned| scanned.session_id != event.session_id);
+            }
+            HookEventType::SessionEnd => {
+                self.hook_tasks.remove(&key);
+                self.scanned_tasks
+                    .retain(|_, task| task.session_id != event.session_id);
+                self.session_records.remove(&event.session_id);
+                self.closed_sessions
+                    .insert(event.session_id.clone(), event.occurred_at.clone());
+                return None;
             }
         }
-        if task.status != previous_status {
-            Some(task.status.clone())
-        } else {
-            None
+        let task_snapshot = task.clone();
+        let status_changed = task.status != previous_status;
+        if status_changed {
+            append_event_log(&format!(
+                "status_transition session={} pid={} {:?}->{:?} title={}",
+                event.session_id,
+                event.pid,
+                previous_status,
+                task.status,
+                task.title
+            ));
         }
+        let changed_status = status_changed.then(|| task.status.clone());
+        let last_conversation_content = event
+            .conversation_content
+            .clone()
+            .or_else(|| {
+                self.session_records
+                    .get(&event.session_id)
+                    .map(|record| record.last_conversation_content.clone())
+            })
+            .unwrap_or_else(|| event.title.clone());
+        self.session_records.insert(
+            event.session_id.clone(),
+            SessionRecord {
+                session_id: event.session_id.clone(),
+                last_conversation_content,
+                last_hook_event: event.event_type.clone(),
+                last_status: task_snapshot.status.clone(),
+                updated_at: event.occurred_at.clone(),
+            },
+        );
+        self.closed_sessions.remove(&event.session_id);
+        if status_changed {
+            self.enqueue_notification(&task_snapshot, &event.occurred_at);
+        }
+        changed_status
     }
 
-    pub fn replace_scanned_tasks(&mut self, tasks: Vec<TaskCard>, alive_pids: &[u32]) {
+    pub fn replace_scanned_tasks(&mut self, tasks: Vec<TaskCard>, alive_pids: &[u32], _occurred_at: &str) {
         let previous_count = self.scanned_tasks.len();
         let next_count = tasks.len();
         let alive_pids_set: std::collections::HashSet<u32> = alive_pids.iter().copied().collect();
@@ -72,47 +184,117 @@ impl TaskStore {
             previous_count, next_count, alive_pids
         );
 
-        // Update scanned tasks - only keep tasks whose pid is alive
         self.scanned_tasks = tasks
             .into_iter()
             .filter(|task| alive_pids_set.contains(&task.pid))
+            .filter(|task| !self.closed_sessions.contains_key(&task.session_id))
+            .filter(|task| {
+                !self
+                    .hook_tasks
+                    .values()
+                    .any(|hook| hook.pid == task.pid && hook.status == TaskStatus::Completed)
+            })
             .map(|task| (task.task_id.clone(), task))
             .collect();
 
-        // Also clean up hook_tasks - remove tasks whose process has exited
         let hook_pids_to_remove: Vec<String> = self
             .hook_tasks
             .values()
             .filter(|task| {
-                // Keep completed tasks (they finished normally)
-                // But remove running/needs_user tasks whose process died
-                task.status != TaskStatus::Completed && !alive_pids_set.contains(&task.pid)
+                task.liveness == TaskLiveness::Alive
+                    && (!alive_pids_set.contains(&task.pid)
+                        || (task.status == TaskStatus::Completed
+                            && self
+                                .closed_sessions
+                                .contains_key(&task.session_id)
+                            && self
+                                .scanned_tasks
+                                .values()
+                                .all(|scanned| scanned.pid != task.pid)))
             })
             .map(|task| task.task_id.clone())
             .collect();
 
-        for pid in hook_pids_to_remove {
-            eprintln!("[claudeBoard] removing dead hook task pid={}", pid);
-            self.hook_tasks.remove(&pid);
+        for task_id in hook_pids_to_remove {
+            eprintln!("[claudeBoard] removing dead hook task id={}", task_id);
+            if let Some(task) = self.hook_tasks.remove(&task_id) {
+                self.scanned_tasks
+                    .retain(|_, scanned| scanned.session_id != task.session_id);
+                self.session_records.remove(&task.session_id);
+                self.closed_sessions
+                    .insert(task.session_id.clone(), _occurred_at.to_string());
+            }
         }
     }
 
+    pub fn restore_snapshot(&mut self, snapshot: TaskSnapshot) {
+        let TaskSnapshot {
+            sessions,
+            notifications,
+            tasks,
+            ..
+        } = snapshot;
+
+        self.session_records = sessions
+            .iter()
+            .filter(|record| !matches!(record.last_hook_event, HookEventType::SessionEnd))
+            .cloned()
+            .map(|record| (record.session_id.clone(), record))
+            .collect();
+        self.pending_notifications = notifications;
+        self.next_notification_id = self
+            .pending_notifications
+            .iter()
+            .map(|notification| notification.id)
+            .max()
+            .unwrap_or(0)
+            + 1;
+        self.hook_tasks = tasks
+            .into_iter()
+            .filter(|task| task.source == "hook")
+            .map(|task| (task.task_id.clone(), task))
+            .collect();
+        self.closed_sessions = sessions
+            .into_iter()
+            .filter(|record| matches!(record.last_hook_event, HookEventType::SessionEnd))
+            .map(|record| (record.session_id, record.updated_at))
+            .collect();
+    }
+
     pub fn snapshot(&self) -> TaskSnapshot {
-        let has_active_hook_tasks = self
+        let mut all_tasks = self
             .hook_tasks
             .values()
-            .any(|task| task.status != TaskStatus::Completed);
-        let mut tasks = self.hook_tasks.values().cloned().collect::<Vec<_>>();
+            .filter(|task| task.liveness == TaskLiveness::Alive)
+            .cloned()
+            .collect::<Vec<_>>();
+        let hook_sessions = self
+            .hook_tasks
+            .values()
+            .map(|task| (task.pid, task.session_id.as_str()))
+            .collect::<std::collections::HashSet<_>>();
+        let hook_pids = self
+            .hook_tasks
+            .values()
+            .map(|task| task.pid)
+            .collect::<std::collections::HashSet<_>>();
 
-        if !has_active_hook_tasks {
-            tasks.extend(self.scanned_tasks.values().cloned());
-        }
-        let has_active_tasks = tasks
+        all_tasks.extend(
+            self.scanned_tasks
+                .values()
+                .filter(|task| {
+                    !hook_sessions.contains(&(task.pid, task.session_id.as_str()))
+                        && !(task.session_id.starts_with("local-") && hook_pids.contains(&task.pid))
+                })
+                .cloned(),
+        );
+
+        let completed_count = all_tasks
             .iter()
-            .any(|task| task.status != TaskStatus::Completed);
-        if has_active_tasks {
-            tasks.retain(|task| task.status != TaskStatus::Completed);
-        }
+            .filter(|task| task.status == TaskStatus::Completed)
+            .count();
+
+        let mut tasks = all_tasks;
 
         tasks.sort_by(|left, right| {
             let rank = |status: &TaskStatus| match status {
@@ -128,7 +310,22 @@ impl TaskStore {
                 .then_with(|| right.updated_at.cmp(&left.updated_at))
         });
 
-        let counts = tasks
+        let mut counts = Self::counts_for(&tasks);
+        counts.completed = completed_count;
+
+        let mut sessions = self.session_records.values().cloned().collect::<Vec<_>>();
+        sessions.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+
+        TaskSnapshot {
+            counts,
+            tasks,
+            sessions,
+            notifications: self.pending_notifications.clone(),
+        }
+    }
+
+    fn counts_for(tasks: &[TaskCard]) -> SnapshotCounts {
+        tasks
             .iter()
             .fold(SnapshotCounts::default(), |mut counts, task| {
                 counts.total += 1;
@@ -139,8 +336,101 @@ impl TaskStore {
                     TaskStatus::NotStarted | TaskStatus::IdleOrUnknown => {}
                 }
                 counts
-            });
+            })
+    }
 
-        TaskSnapshot { counts, tasks }
+    pub fn prune_dead_tasks(&mut self, now: &str) {
+        let expired_session_ids = self
+            .hook_tasks
+            .values()
+            .filter(|task| task.liveness == TaskLiveness::Dead)
+            .filter_map(|task| {
+                task.removed_at
+                    .as_deref()
+                    .filter(|removed_at| Self::is_dead_retention_expired(removed_at, now))
+                    .map(|_| task.session_id.clone())
+            })
+            .collect::<std::collections::HashSet<_>>();
+
+        if expired_session_ids.is_empty() {
+            return;
+        }
+
+        self.hook_tasks
+            .retain(|_, task| !expired_session_ids.contains(&task.session_id));
+        self.session_records
+            .retain(|session_id, _| !expired_session_ids.contains(session_id));
+    }
+
+    fn is_dead_retention_expired(removed_at: &str, now: &str) -> bool {
+        match (
+            time::OffsetDateTime::parse(removed_at, &time::format_description::well_known::Rfc3339),
+            time::OffsetDateTime::parse(now, &time::format_description::well_known::Rfc3339),
+        ) {
+            (Ok(removed_at), Ok(now)) => now - removed_at > time::Duration::days(7),
+            _ => false,
+        }
+    }
+
+    fn push_hook_debug_entry(&mut self, entry: HookDebugEntry) {
+        self.recent_hook_events.push(entry);
+        if self.recent_hook_events.len() > MAX_HOOK_DEBUG_EVENTS {
+            let overflow = self.recent_hook_events.len() - MAX_HOOK_DEBUG_EVENTS;
+            self.recent_hook_events.drain(0..overflow);
+        }
+    }
+
+    pub fn ack_notification(&mut self, notification_id: u64) -> bool {
+        let previous_len = self.pending_notifications.len();
+        self.pending_notifications
+            .retain(|notification| notification.id != notification_id);
+        self.pending_notifications.len() != previous_len
+    }
+
+    pub fn persisted_snapshot(&self) -> TaskSnapshot {
+        let mut tasks = self
+            .hook_tasks
+            .values()
+            .filter(|task| {
+                task.liveness == TaskLiveness::Alive || task.removed_at.is_some()
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+        tasks.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+        let mut sessions = self.session_records.values().cloned().collect::<Vec<_>>();
+        sessions.sort_by(|left, right| right.updated_at.cmp(&left.updated_at));
+
+        TaskSnapshot {
+            counts: Self::counts_for(&tasks),
+            tasks,
+            sessions,
+            notifications: self.pending_notifications.clone(),
+        }
+    }
+
+    fn enqueue_notification(&mut self, task: &TaskCard, occurred_at: &str) {
+        let sound_type = match task.status {
+            TaskStatus::NeedsUser => Some(NotificationSoundType::Waiting),
+            TaskStatus::Completed => Some(NotificationSoundType::Completed),
+            TaskStatus::NotStarted | TaskStatus::Running | TaskStatus::IdleOrUnknown => None,
+        };
+
+        if let Some(sound_type) = sound_type {
+            let id = if self.next_notification_id == 0 {
+                self.next_notification_id = 1;
+                0
+            } else {
+                self.next_notification_id += 1;
+                self.next_notification_id - 1
+            };
+            self.pending_notifications.push(NotificationEvent {
+                id,
+                session_id: task.session_id.clone(),
+                task_id: task.task_id.clone(),
+                status: task.status.clone(),
+                sound_type,
+                occurred_at: occurred_at.to_string(),
+            });
+        }
     }
 }

@@ -6,9 +6,11 @@ use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 use claude_board::{
+    event_log::{append_event_log, reset_event_log},
     model::{HookEvent, HookEventType},
     scan::scan_and_filter_rows,
-    server::{build_router, refresh_scan},
+    server::{build_router_with_state_path, refresh_scan},
+    session_state::load_snapshot,
     startup_hooks::ensure_hook_setup,
     store::TaskStore,
 };
@@ -20,11 +22,22 @@ fn main() {
 }
 
 async fn async_main() {
+    if let Err(error) = reset_event_log() {
+        eprintln!("[claudeBoard] event log reset failed: {error}");
+    }
+    append_event_log("----- daemon_start -----");
     if let Err(error) = ensure_hook_setup() {
         eprintln!("[claudeBoard] daemon hook setup failed: {error}");
     }
 
+    let state_path = PathBuf::from(std::env::var("HOME").unwrap_or_default())
+        .join(".claude-board")
+        .join("session-state.json");
     let store = Arc::new(Mutex::new(TaskStore::default()));
+    match load_snapshot(&state_path) {
+        Ok(snapshot) => store.lock().unwrap().restore_snapshot(snapshot),
+        Err(error) => eprintln!("[claudeBoard] daemon session state load failed: {error}"),
+    }
 
     // Load and replay buffered events first
     let buffer_path = PathBuf::from(std::env::var("HOME").unwrap_or_default())
@@ -37,6 +50,12 @@ async fn async_main() {
             for event in events {
                 store.lock().unwrap().apply(event);
             }
+            if let Err(error) = claude_board::session_state::save_snapshot(
+                &state_path,
+                &store.lock().unwrap().persisted_snapshot(),
+            ) {
+                eprintln!("[claudeBoard] daemon session state save after replay failed: {error}");
+            }
         }
         Err(error) => {
             eprintln!("[claudeBoard] daemon no buffered events to replay: {error}");
@@ -48,7 +67,7 @@ async fn async_main() {
         Ok(()) => eprintln!("[claudeBoard] daemon initial_refresh completed"),
         Err(error) => eprintln!("[claudeBoard] daemon initial_refresh failed: {error}"),
     }
-    let app = build_router(store, scan_rows, current_timestamp);
+    let app = build_router_with_state_path(store, scan_rows, current_timestamp, Some(state_path));
     let addr = SocketAddr::from(([127, 0, 0, 1], 46123));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
@@ -93,12 +112,23 @@ fn drain_buffered_events(path: &std::path::Path) -> std::io::Result<Vec<HookEven
             Ok(buffered) => {
                 // Convert BufferedEvent to HookEvent
                 let event_type = match buffered.hook_event_name.as_str() {
-                    "TaskCreated" | "PreToolUse" | "SessionStart" => HookEventType::TaskCreated,
-                    "TaskCompleted" | "SessionEnd" => HookEventType::TaskCompleted,
-                    "PermissionRequest" | "PermissionDenied" | "PreUserInteraction" => {
-                        HookEventType::PermissionRequest
+                    "SessionStart" | "UserPromptSubmit" | "PreToolUse" | "SubagentStart"
+                    | "TaskCreated" | "PreCompact" | "PermissionDenied" | "ElicitationResult" => {
+                        HookEventType::TaskCreated
                     }
-                    "UserPromptSubmit" => HookEventType::TaskCreated,
+                    "PermissionRequest" | "Elicitation" => HookEventType::PermissionRequest,
+                    "PostToolUse" | "PostToolUseFailure" | "TaskCompleted" | "Stop"
+                    | "StopFailure" => HookEventType::TaskCompleted,
+                    "SubagentStop" | "SessionEnd" => HookEventType::SessionEnd,
+                    "PostConversationTurn" => match buffered.permission_mode.as_deref() {
+                        Some("acceptEdits") => HookEventType::PermissionRequest,
+                        Some("bypassPermissions")
+                            if buffered.prompt.as_ref().map(|prompt| prompt.is_empty()).unwrap_or(true) =>
+                        {
+                            HookEventType::TaskCompleted
+                        }
+                        _ => continue,
+                    },
                     _ => continue, // Skip unknown events
                 };
 
@@ -132,8 +162,10 @@ fn drain_buffered_events(path: &std::path::Path) -> std::io::Result<Vec<HookEven
                 events.push(HookEvent {
                     event_type,
                     session_id: buffered.session_id,
+                    agent_id: None,
                     pid: buffered.pid,
                     title,
+                    conversation_content: buffered.prompt.clone().filter(|prompt| !prompt.trim().is_empty()),
                     occurred_at: buffered.occurred_at,
                 });
             }

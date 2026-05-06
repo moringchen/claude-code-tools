@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:ensure-daemon": "sh -c 'curl --noproxy \"*\" --silent --fail http://127.0.0.1:46123/snapshot > /dev/null || cargo run --manifest-path src-tauri/Cargo.toml --bin claude_boardd >/tmp/claude_boardd.log 2>&1 & until curl --noproxy \"*\" --silent --fail http://127.0.0.1:46123/snapshot > /dev/null; do sleep 1; done'",
     "build": "tsc && vite build",
     "test": "vitest run",
     "tauri:dev": "tauri dev",

@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "identifier": "com.moringchen.claude-board",
   "build": {
-    "beforeDevCommand": "sh -c 'curl --noproxy \"*\" --silent --fail http://localhost:1420/ > /dev/null || npm run dev'",
+    "beforeDevCommand": "sh -c 'curl --noproxy \"*\" --silent --fail http://localhost:1420/ > /dev/null || npm run dev & npm run dev:ensure-daemon && until curl --noproxy \"*\" --silent --fail http://127.0.0.1:46123/snapshot > /dev/null; do sleep 1; done'",
     "devUrl": "http://localhost:1420",
     "frontendDist": "../dist"
   },
@@ -12,9 +12,10 @@
     "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "claudeBoard",
         "width": 260,
-        "height": 52,
+        "height": 64,
         "resizable": false,
         "decorations": false,
         "alwaysOnTop": false,

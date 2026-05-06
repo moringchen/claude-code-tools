@@ -1,4 +1,4 @@
-use crate::model::{TaskCard, TaskStatus, WindowTarget};
+use crate::model::{ScanDebugEntry, ScanDebugSnapshot, ScanDecision, TaskCard, TaskStatus, WindowTarget};
 use crate::session_meta::get_task_title_by_pid;
 use std::collections::HashSet;
 
@@ -8,6 +8,13 @@ pub struct ProcessInfo {
     pub ppid: u32,
     pub state: String,
     pub command: String,
+}
+
+#[derive(Debug)]
+pub struct ScanComputation {
+    pub rows: Vec<String>,
+    pub alive_pids: Vec<u32>,
+    pub debug: ScanDebugSnapshot,
 }
 
 pub fn parse_ps_output(output: &str) -> Vec<ProcessInfo> {
@@ -60,14 +67,92 @@ pub fn filter_parent_claude_processes(processes: &[ProcessInfo]) -> Vec<&Process
             if !is_claude_code_command(&p.command) {
                 return false;
             }
-            // 排除停止的进程 (state = T)
             if p.state == "T" {
                 return false;
             }
-            // 排除子进程（PPID 是另一个 claude 进程）
             !claude_pids.contains(&p.ppid)
         })
         .collect()
+}
+
+fn scan_debug_entry(process: &ProcessInfo, decision: ScanDecision, reason: Option<&str>) -> ScanDebugEntry {
+    ScanDebugEntry {
+        pid: Some(process.pid),
+        ppid: Some(process.ppid),
+        state: Some(process.state.clone()),
+        command: process.command.clone(),
+        decision,
+        reason: reason.map(ToOwned::to_owned),
+        accepted_row: None,
+        task: None,
+    }
+}
+
+pub fn compute_scan(ps_output: &str, now: &str) -> ScanComputation {
+    let processes = parse_ps_output(ps_output);
+    let claude_pids: HashSet<u32> = processes
+        .iter()
+        .filter(|process| is_claude_code_command(&process.command))
+        .map(|process| process.pid)
+        .collect();
+
+    let mut rows = Vec::new();
+    let mut alive_pids = Vec::new();
+    let mut entries = Vec::new();
+
+    for process in processes {
+        if !is_claude_code_command(&process.command) {
+            continue;
+        }
+
+        if process.state == "T" {
+            entries.push(scan_debug_entry(&process, ScanDecision::Rejected, Some("stopped_process")));
+            continue;
+        }
+
+        if claude_pids.contains(&process.ppid) {
+            entries.push(scan_debug_entry(&process, ScanDecision::Rejected, Some("child_claude_process")));
+            continue;
+        }
+
+        let line = format!("{} {} {} {}", process.pid, process.ppid, process.state, process.command);
+        let Some(row) = parse_scan_row(&line) else {
+            entries.push(scan_debug_entry(&process, ScanDecision::Rejected, Some("filtered_by_scan_row")));
+            continue;
+        };
+
+        alive_pids.push(process.pid);
+        rows.push(row.clone());
+        entries.push(ScanDebugEntry {
+            pid: Some(process.pid),
+            ppid: Some(process.ppid),
+            state: Some(process.state.clone()),
+            command: process.command.clone(),
+            decision: ScanDecision::Accepted,
+            reason: None,
+            accepted_row: Some(row),
+            task: None,
+        });
+    }
+
+    let rebuilt_tasks = rebuild_tasks_from_rows(&rows, now);
+    for entry in &mut entries {
+        if entry.decision != ScanDecision::Accepted {
+            continue;
+        }
+        if let Some(pid) = entry.pid {
+            entry.task = rebuilt_tasks.iter().find(|task| task.pid == pid).cloned();
+        }
+    }
+
+    ScanComputation {
+        rows,
+        alive_pids,
+        debug: ScanDebugSnapshot {
+            occurred_at: now.to_string(),
+            entries,
+        },
+    }
 }
 
 pub fn parse_scan_row(line: &str) -> Option<String> {
@@ -147,17 +232,7 @@ fn normalized_executable_name(token: &str) -> String {
 }
 
 pub fn scan_and_filter_rows(ps_output: &str) -> Vec<String> {
-    let processes = parse_ps_output(ps_output);
-    let parent_processes = filter_parent_claude_processes(&processes);
-
-    parent_processes
-        .iter()
-        .filter_map(|p| {
-            // 格式: pid ppid state command (state 在 parse_scan_row 中会被跳过)
-            let line = format!("{} {} {} {}", p.pid, p.ppid, p.state, p.command);
-            parse_scan_row(&line)
-        })
-        .collect()
+    compute_scan(ps_output, "1970-01-01T00:00:00Z").rows
 }
 
 pub fn rebuild_tasks_from_rows(rows: &[String], now: &str) -> Vec<TaskCard> {
@@ -195,7 +270,7 @@ pub fn rebuild_tasks_from_rows(rows: &[String], now: &str) -> Vec<TaskCard> {
             session_id: parts[0].to_string(),
             pid,
             title: improved_title,
-            status: TaskStatus::NotStarted,
+            status: TaskStatus::IdleOrUnknown,
             source: "scan_recovered".into(),
             window_target: WindowTarget {
                 host_kind: host_kind.into(),
@@ -215,6 +290,9 @@ pub fn rebuild_tasks_from_rows(rows: &[String], now: &str) -> Vec<TaskCard> {
             started_at: now.to_string(),
             updated_at: now.to_string(),
             completed_at: None,
+            liveness: crate::model::TaskLiveness::Alive,
+            removed_at: None,
+            removed_reason: None,
         });
     }
 

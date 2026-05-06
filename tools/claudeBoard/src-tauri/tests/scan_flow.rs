@@ -1,4 +1,4 @@
-use claude_board::scan::{parse_scan_row, rebuild_tasks_from_rows};
+use claude_board::scan::{compute_scan, parse_scan_row, rebuild_tasks_from_rows};
 
 #[test]
 fn parse_scan_row_accepts_plain_claude_command() {
@@ -115,13 +115,13 @@ fn rebuilds_tasks_for_all_local_claude_code_sessions() {
     assert_eq!(tasks[0].task_id, "scan:session-1:901");
     assert_eq!(tasks[0].session_id, "session-1");
     assert_eq!(tasks[0].pid, 901);
-    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::NotStarted);
+    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::IdleOrUnknown);
     assert_eq!(tasks[0].source, "scan_recovered");
 
     assert_eq!(tasks[1].task_id, "scan:session-2:902");
     assert_eq!(tasks[1].session_id, "session-2");
     assert_eq!(tasks[1].pid, 902);
-    assert_eq!(tasks[1].status, claude_board::model::TaskStatus::NotStarted);
+    assert_eq!(tasks[1].status, claude_board::model::TaskStatus::IdleOrUnknown);
     assert_eq!(tasks[1].source, "scan_recovered");
 }
 
@@ -138,7 +138,7 @@ fn rebuilds_tmux_and_ghostty_context_from_scan_rows() {
 
     assert_eq!(tasks[0].task_id, "scan:session-1:901");
     assert_eq!(tasks[0].pid, 901);
-    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::NotStarted);
+    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::IdleOrUnknown);
     assert_eq!(tasks[0].source, "scan_recovered");
     assert_eq!(tasks[0].window_target.host_kind, "terminal");
     assert_eq!(tasks[0].window_target.app, "Ghostty");
@@ -155,6 +155,60 @@ fn rebuilds_tmux_and_ghostty_context_from_scan_rows() {
 }
 
 #[test]
+fn compute_scan_records_accepted_and_rejected_entries() {
+    let computation = compute_scan(
+        "901 0 S /usr/local/bin/claude\n902 901 S /usr/local/bin/claude code\n903 0 T /usr/local/bin/claude",
+        "2026-05-06T15:10:00Z",
+    );
+
+    assert_eq!(computation.rows.len(), 1);
+    assert_eq!(computation.alive_pids, vec![901]);
+    assert_eq!(computation.debug.occurred_at, "2026-05-06T15:10:00Z");
+
+    let accepted = computation
+        .debug
+        .entries
+        .iter()
+        .find(|entry| entry.pid == Some(901))
+        .unwrap();
+    assert_eq!(accepted.decision, claude_board::model::ScanDecision::Accepted);
+    assert_eq!(accepted.task.as_ref().map(|task| task.session_id.as_str()), Some("local-901"));
+
+    let child = computation
+        .debug
+        .entries
+        .iter()
+        .find(|entry| entry.pid == Some(902))
+        .unwrap();
+    assert_eq!(child.decision, claude_board::model::ScanDecision::Rejected);
+    assert_eq!(child.reason.as_deref(), Some("child_claude_process"));
+
+    let stopped = computation
+        .debug
+        .entries
+        .iter()
+        .find(|entry| entry.pid == Some(903))
+        .unwrap();
+    assert_eq!(stopped.decision, claude_board::model::ScanDecision::Rejected);
+    assert_eq!(stopped.reason.as_deref(), Some("stopped_process"));
+}
+
+#[test]
+fn compute_scan_keeps_debug_trace_for_main_scan_flow() {
+    let computation = compute_scan(
+        "200 1 S /usr/local/bin/claude\n201 200 S /usr/local/bin/claude\n202 1 T /usr/local/bin/claude\n203 1 S /usr/bin/python\n",
+        "2026-04-24T17:30:00Z",
+    );
+
+    assert_eq!(computation.rows.len(), 1);
+    assert_eq!(computation.alive_pids, vec![200]);
+    assert_eq!(computation.debug.entries.len(), 3);
+    assert_eq!(computation.debug.entries[0].accepted_row.as_deref(), Some("local-200\t200\tworkspace\tTerminal\tterminal\t\t\tclaude"));
+    assert_eq!(computation.debug.entries[1].reason.as_deref(), Some("child_claude_process"));
+    assert_eq!(computation.debug.entries[2].reason.as_deref(), Some("stopped_process"));
+}
+
+#[test]
 fn rebuilds_windows_scan_rows_into_not_started_tasks() {
     let rows = vec!["session-win\t903\tworkspace\tTerminal\tterminal\t\t\tclaude.exe code".to_string()];
 
@@ -163,6 +217,6 @@ fn rebuilds_windows_scan_rows_into_not_started_tasks() {
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks[0].task_id, "scan:session-win:903");
     assert_eq!(tasks[0].title, "claude.exe code");
-    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::NotStarted);
+    assert_eq!(tasks[0].status, claude_board::model::TaskStatus::IdleOrUnknown);
     assert_eq!(tasks[0].source, "scan_recovered");
 }

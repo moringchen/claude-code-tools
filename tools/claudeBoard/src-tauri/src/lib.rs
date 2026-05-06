@@ -1,5 +1,6 @@
 pub mod alerts;
 pub mod event_buffer;
+pub mod event_log;
 pub mod focus;
 pub mod hooks_config;
 pub mod macos_window_behavior;
@@ -7,6 +8,7 @@ pub mod model;
 pub mod scan;
 pub mod server;
 pub mod session_meta;
+pub mod session_state;
 pub mod sound;
 pub mod startup_hooks;
 pub mod store;
