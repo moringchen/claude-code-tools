@@ -9,6 +9,13 @@ use crate::model::{
 
 const MAX_HOOK_DEBUG_EVENTS: usize = 100;
 
+fn is_subagent_task_id(task_id: &str, session_id: &str) -> bool {
+    task_id
+        .strip_prefix(session_id)
+        .and_then(|suffix| suffix.strip_prefix(':'))
+        .is_some_and(|suffix| !suffix.is_empty())
+}
+
 #[derive(Default)]
 pub struct TaskStore {
     hook_tasks: HashMap<String, TaskCard>,
@@ -51,12 +58,12 @@ impl TaskStore {
     }
 
     pub fn apply(&mut self, event: HookEvent) -> Option<TaskStatus> {
+        if event.agent_id.is_some() {
+            return None;
+        }
+
         // Use session_id only as key for aggregation (one task per session)
-        let key = event
-            .agent_id
-            .as_ref()
-            .map(|agent_id| format!("{}:{agent_id}", event.session_id))
-            .unwrap_or_else(|| event.session_id.clone());
+        let key = event.session_id.clone();
 
         if matches!(event.event_type, HookEventType::SessionEnd)
             || (matches!(event.event_type, HookEventType::TaskCompleted)
@@ -254,6 +261,7 @@ impl TaskStore {
         self.hook_tasks = tasks
             .into_iter()
             .filter(|task| task.source == "hook")
+            .filter(|task| !is_subagent_task_id(&task.task_id, &task.session_id))
             .map(|task| (task.task_id.clone(), task))
             .collect();
         self.closed_sessions = sessions
@@ -394,7 +402,8 @@ impl TaskStore {
             .hook_tasks
             .values()
             .filter(|task| {
-                task.liveness == TaskLiveness::Alive || task.removed_at.is_some()
+                (task.liveness == TaskLiveness::Alive || task.removed_at.is_some())
+                    && !is_subagent_task_id(&task.task_id, &task.session_id)
             })
             .cloned()
             .collect::<Vec<_>>();

@@ -242,6 +242,81 @@ fn restore_snapshot_does_not_resurrect_closed_sessions_from_persisted_state() {
 }
 
 #[test]
+fn ignores_subagent_task_keys_in_visible_snapshot() {
+    let mut store = TaskStore::default();
+
+    store.apply(HookEvent {
+        event_type: HookEventType::TaskCreated,
+        session_id: "session-main".into(),
+        agent_id: None,
+        pid: 123,
+        title: "Main task".into(),
+        conversation_content: None,
+        occurred_at: "2026-05-06T15:00:00Z".into(),
+    });
+    store.apply(HookEvent {
+        event_type: HookEventType::TaskCreated,
+        session_id: "session-main".into(),
+        agent_id: Some("subagent-1".into()),
+        pid: 123,
+        title: "Subagent task".into(),
+        conversation_content: None,
+        occurred_at: "2026-05-06T15:00:10Z".into(),
+    });
+
+    let snapshot = store.snapshot();
+
+    assert_eq!(snapshot.tasks.len(), 1);
+    assert_eq!(snapshot.tasks[0].task_id, "session-main");
+    assert_eq!(snapshot.tasks[0].title, "Main task");
+}
+
+#[test]
+fn restore_snapshot_drops_persisted_subagent_hook_tasks() {
+    let previous_snapshot = TaskSnapshot {
+        counts: SnapshotCounts::default(),
+        tasks: vec![TaskCard {
+            task_id: "session-main:subagent-1".into(),
+            session_id: "session-main".into(),
+            pid: 123,
+            title: "Subagent task".into(),
+            status: TaskStatus::Running,
+            source: "hook".into(),
+            window_target: WindowTarget {
+                host_kind: "unknown".into(),
+                app: "unknown".into(),
+                descriptor: "unknown".into(),
+                tab_id: None,
+                pane_id: None,
+            },
+            started_at: "2026-05-06T15:00:00Z".into(),
+            updated_at: "2026-05-06T15:00:00Z".into(),
+            completed_at: None,
+            liveness: TaskLiveness::Alive,
+            removed_at: None,
+            removed_reason: None,
+        }],
+        sessions: vec![claude_board::model::SessionRecord {
+            session_id: "session-main".into(),
+            last_conversation_content: "Main task".into(),
+            last_hook_event: HookEventType::TaskCreated,
+            last_status: TaskStatus::Running,
+            updated_at: "2026-05-06T15:00:00Z".into(),
+        }],
+        notifications: Vec::new(),
+    };
+
+    let mut restored = TaskStore::default();
+    restored.restore_snapshot(previous_snapshot);
+
+    let snapshot = restored.snapshot();
+    let persisted = restored.persisted_snapshot();
+
+    assert!(snapshot.tasks.is_empty());
+    assert!(persisted.tasks.is_empty());
+}
+
+#[test]
 fn applies_running_needs_user_and_completed_events() {
     let mut store = TaskStore::default();
 
