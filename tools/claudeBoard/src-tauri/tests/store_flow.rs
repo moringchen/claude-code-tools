@@ -40,18 +40,9 @@ fn permission_request_enqueues_waiting_notification_in_same_snapshot() {
 }
 
 #[test]
-fn permission_denied_returns_task_to_running_without_new_waiting_notification() {
+fn permission_denied_settles_task_to_completed_and_enqueues_completed_notification() {
     let mut store = TaskStore::default();
 
-    store.apply(HookEvent {
-        event_type: HookEventType::TaskCreated,
-        session_id: "session-denied".into(),
-        agent_id: None,
-        pid: 811,
-        title: "Approve command".into(),
-        conversation_content: None,
-        occurred_at: "2026-05-06T08:00:00Z".into(),
-    });
     store.apply(HookEvent {
         event_type: HookEventType::PermissionRequest,
         session_id: "session-denied".into(),
@@ -78,9 +69,10 @@ fn permission_denied_returns_task_to_running_without_new_waiting_notification() 
         .find(|task| task.task_id == "session-denied")
         .unwrap();
 
-    assert_eq!(task.status, TaskStatus::Running);
-    assert_eq!(snapshot.notifications.len(), 1);
+    assert_eq!(task.status, TaskStatus::Completed);
+    assert_eq!(snapshot.notifications.len(), 2);
     assert_eq!(snapshot.notifications[0].sound_type, NotificationSoundType::Waiting);
+    assert_eq!(snapshot.notifications[1].sound_type, NotificationSoundType::Completed);
 }
 
 #[test]

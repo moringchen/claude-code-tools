@@ -304,7 +304,7 @@ async fn stop_event_settles_session_to_completed_and_later_user_prompt_reopens_i
 }
 
 #[tokio::test]
-async fn permission_denied_event_returns_task_to_running_in_snapshot() {
+async fn permission_denied_event_settles_task_to_completed_in_snapshot() {
     let store = Arc::new(Mutex::new(TaskStore::default()));
     let app = build_router(store, || Ok(Vec::new()), || "2026-05-06T18:20:00Z".to_string());
 
@@ -349,9 +349,10 @@ async fn permission_denied_event_returns_task_to_running_in_snapshot() {
     let snapshot: TaskSnapshot = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(snapshot.tasks.len(), 1);
-    assert_eq!(snapshot.tasks[0].status, TaskStatus::Running);
-    assert_eq!(snapshot.notifications.len(), 1);
+    assert_eq!(snapshot.tasks[0].status, TaskStatus::Completed);
+    assert_eq!(snapshot.notifications.len(), 2);
     assert_eq!(snapshot.notifications[0].sound_type, claude_board::model::NotificationSoundType::Waiting);
+    assert_eq!(snapshot.notifications[1].sound_type, claude_board::model::NotificationSoundType::Completed);
 }
 
 
@@ -364,7 +365,7 @@ async fn maps_claude_code_hook_events_to_task_statuses() {
         ("SubagentStart", Some(TaskStatus::Running)),
         ("TaskCreated", Some(TaskStatus::Running)),
         ("PreCompact", Some(TaskStatus::Running)),
-        ("PermissionDenied", Some(TaskStatus::Running)),
+        ("PermissionDenied", Some(TaskStatus::Completed)),
         ("ElicitationResult", Some(TaskStatus::Running)),
         ("PermissionRequest", Some(TaskStatus::NeedsUser)),
         ("Elicitation", Some(TaskStatus::NeedsUser)),

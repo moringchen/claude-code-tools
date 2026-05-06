@@ -34,10 +34,14 @@ pub fn play_sound_file(sound_type: String) -> Result<(), String> {
     let path = sound_path_for_type(&sound_type)
         .ok_or_else(|| format!("Unknown sound type: {sound_type}"))?;
 
+    eprintln!("[sound:rust] Starting playback type={} path={}", sound_type, path);
+
     Command::new("afplay")
         .arg(path)
         .spawn()
-        .map(|_| ())
+        .map(|child| {
+            eprintln!("[sound:rust] Spawned afplay pid={} type={}", child.id(), sound_type);
+        })
         .map_err(|error| format!("Failed to play sound file: {error}"))
 }
 

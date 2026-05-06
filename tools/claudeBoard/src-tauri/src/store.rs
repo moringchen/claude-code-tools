@@ -116,8 +116,10 @@ impl TaskStore {
             }
             HookEventType::PermissionRequest => task.status = TaskStatus::NeedsUser,
             HookEventType::PermissionDenied => {
-                task.status = TaskStatus::Running;
-                task.completed_at = None;
+                task.status = TaskStatus::Completed;
+                task.completed_at = Some(event.occurred_at.clone());
+                self.scanned_tasks
+                    .retain(|_, scanned| scanned.session_id != event.session_id);
             }
             HookEventType::TaskCompleted => {
                 task.status = TaskStatus::Completed;

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Snapshot } from "./lib/api";
 import App from "./App";
 import { ackNotification, focusTask } from "./lib/api";
+import { playSound } from "./lib/sound";
 import { useSnapshot } from "./lib/use-snapshot";
 
 const startDragging = vi.fn();
@@ -22,6 +23,11 @@ vi.mock("./lib/api", () => ({
 
 vi.mock("./lib/use-snapshot", () => ({
   useSnapshot: vi.fn(),
+}));
+
+vi.mock("./lib/sound", () => ({
+  playSound: vi.fn(),
+  markUserInteraction: vi.fn(),
 }));
 
 afterEach(() => {
@@ -93,17 +99,13 @@ describe("App", () => {
       ],
     });
 
-    const play = vi.fn().mockResolvedValue(undefined);
-    const audio = { play };
-    const audioCtor = vi.fn(() => audio);
-    vi.stubGlobal("Audio", audioCtor as unknown as typeof Audio);
+    vi.mocked(playSound).mockResolvedValue(undefined);
     vi.mocked(ackNotification).mockResolvedValue(undefined);
 
     render(<App />);
 
-    await waitFor(() => expect(audioCtor).toHaveBeenCalledTimes(1));
-    expect(audioCtor).toHaveBeenCalledWith("/sounds/waiting.mp3");
-    await waitFor(() => expect(play).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(playSound).toHaveBeenCalledTimes(1));
+    expect(playSound).toHaveBeenCalledWith("waiting");
     await waitFor(() => expect(ackNotification).toHaveBeenCalledWith(1));
   });
 
@@ -140,18 +142,63 @@ describe("App", () => {
       ],
     });
 
-    const play = vi.fn().mockResolvedValue(undefined);
-    const audio = { play };
-    const audioCtor = vi.fn(() => audio);
-    vi.stubGlobal("Audio", audioCtor as unknown as typeof Audio);
+    vi.mocked(playSound).mockResolvedValue(undefined);
     vi.mocked(ackNotification).mockResolvedValue(undefined);
 
     render(<App />);
 
-    await waitFor(() => expect(audioCtor).toHaveBeenCalledTimes(1));
-    expect(audioCtor).toHaveBeenCalledWith("/sounds/completed.mp3");
-    await waitFor(() => expect(play).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(playSound).toHaveBeenCalledTimes(1));
+    expect(playSound).toHaveBeenCalledWith("completed");
     await waitFor(() => expect(ackNotification).toHaveBeenCalledWith(2));
+  });
+
+  it("plays completed notifications when a later snapshot arrives", async () => {
+    vi.mocked(playSound).mockResolvedValue(undefined);
+    vi.mocked(ackNotification).mockResolvedValue(undefined);
+
+    const firstSnapshot: Snapshot = {
+      counts: { total: 1, needsUser: 0, completed: 0, running: 1 },
+      tasks: [runningTask],
+      notifications: emptyNotifications,
+    };
+    const secondSnapshot: Snapshot = {
+      counts: { total: 1, needsUser: 0, completed: 1, running: 0 },
+      tasks: [
+        {
+          ...runningTask,
+          taskId: "task-complete-late",
+          sessionId: "session-complete-late",
+          title: "Late completion",
+          status: "completed",
+          updatedAt: "2026-05-05T15:03:00Z",
+          completedAt: "2026-05-05T15:03:00Z",
+        },
+      ],
+      notifications: [
+        {
+          id: 3,
+          sessionId: "session-complete-late",
+          taskId: "task-complete-late",
+          status: "completed",
+          soundType: "completed",
+          occurredAt: "2026-05-05T15:03:00Z",
+        },
+      ],
+    };
+
+    let currentSnapshot = firstSnapshot;
+    vi.mocked(useSnapshot).mockImplementation(() => currentSnapshot);
+
+    const { rerender } = render(<App />);
+
+    expect(playSound).not.toHaveBeenCalled();
+
+    currentSnapshot = secondSnapshot;
+    rerender(<App />);
+
+    await waitFor(() => expect(playSound).toHaveBeenCalledTimes(1));
+    expect(playSound).toHaveBeenCalledWith("completed");
+    await waitFor(() => expect(ackNotification).toHaveBeenCalledWith(3));
   });
 
   it("shows waiting text ahead of a newer running task in the collapsed summary", () => {

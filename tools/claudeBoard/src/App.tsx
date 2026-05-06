@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { OverlayBar } from "./components/OverlayBar";
 import { TaskList } from "./components/TaskList";
 import { ackNotification, focusTask } from "./lib/api";
+import { playSound } from "./lib/sound";
 import { createOverlayLogicalSize } from "./lib/overlay-window";
 import { currentIslandSummary } from "./lib/task-summary";
 import { useSnapshot } from "./lib/use-snapshot";
@@ -58,8 +59,7 @@ export default function App() {
       }
       playedNotificationIds.current.add(notification.id);
 
-      const audio = new Audio(`/sounds/${notification.soundType}.mp3`);
-      void audio.play()
+      void playSound(notification.soundType)
         .then(() => ackNotification(notification.id))
         .catch((error) => {
           playedNotificationIds.current.delete(notification.id);

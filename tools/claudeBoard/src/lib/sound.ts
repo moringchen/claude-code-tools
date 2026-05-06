@@ -35,9 +35,10 @@ export async function playSound(type: SoundType): Promise<void> {
   await rustLog("log", `[sound] playSound called for type: ${type}`);
 
   try {
-    await invoke("play_sound_file", { soundType: type });
-    await rustLog("log", `[sound] Backend playback requested: ${type}`);
+    const result = await invoke<null>("play_sound_file", { soundType: type });
+    await rustLog("log", `[sound] Backend playback requested: ${type} result=${String(result)}`);
   } catch (error) {
     await rustLog("error", `[sound] Failed to request backend playback: ${type}, ${String(error)}`);
+    throw error;
   }
 }
