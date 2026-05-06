@@ -1,10 +1,11 @@
 use claude_board::window_position::{
-    default_overlay_position, monitor_contains_point, selected_monitor_index,
+    DEBUG_WINDOW_HEIGHT, DEBUG_WINDOW_WIDTH, OVERLAY_WIDTH, WINDOW_GAP, debug_window_position,
+    default_overlay_position, logical_monitor_bounds, monitor_contains_point, selected_monitor_index,
 };
 
 #[test]
 fn centers_overlay_with_logical_monitor_bounds() {
-    assert_eq!(default_overlay_position(0, 0, 1440, 420, 24), (510, 24));
+    assert_eq!(default_overlay_position(0, 0, 1440, OVERLAY_WIDTH, 24), (590, 24));
 }
 
 #[test]
@@ -14,14 +15,32 @@ fn computes_logical_position_for_retina_monitor() {
     let logical_top_inset = (48.0_f64 / scale_factor).round() as i32;
 
     assert_eq!(
-        default_overlay_position(0, 0, logical_monitor_width, 420, logical_top_inset),
-        (510, 24)
+        default_overlay_position(0, 0, logical_monitor_width, OVERLAY_WIDTH, logical_top_inset),
+        (590, 24)
     );
 }
 
 #[test]
+fn converts_retina_monitor_bounds_to_logical_coordinates() {
+    assert_eq!(logical_monitor_bounds(0, 0, 2880, 1800, 2.0), (0, 0, 1440, 900));
+}
+
+#[test]
+fn converts_offset_monitor_bounds_to_logical_coordinates() {
+    assert_eq!(logical_monitor_bounds(723, -1080, 1920, 1080, 1.0), (723, -1080, 1920, 1080));
+}
+
+#[test]
 fn centers_overlay_near_top_of_monitor_containing_pointer() {
-    assert_eq!(default_overlay_position(100, 40, 1440, 420, 48), (610, 88));
+    assert_eq!(default_overlay_position(100, 40, 1440, OVERLAY_WIDTH, 48), (690, 88));
+}
+
+#[test]
+fn places_debug_window_to_the_right_of_overlay() {
+    assert_eq!(debug_window_position(590, 24, OVERLAY_WIDTH), (866, 24));
+    assert_eq!(DEBUG_WINDOW_WIDTH, 420);
+    assert_eq!(DEBUG_WINDOW_HEIGHT, 480);
+    assert_eq!(WINDOW_GAP, 16);
 }
 
 #[test]

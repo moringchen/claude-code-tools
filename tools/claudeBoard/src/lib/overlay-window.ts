@@ -3,7 +3,7 @@ import { LogicalSize } from "@tauri-apps/api/window";
 
 export const COLLAPSED_OVERLAY_SIZE = {
   width: 260,
-  height: 44,
+  height: 64,
 } as const;
 
 export const EXPANDED_OVERLAY_SIZE = {

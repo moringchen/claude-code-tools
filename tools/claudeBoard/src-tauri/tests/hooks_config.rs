@@ -32,6 +32,8 @@ fn inserts_required_claude_code_hooks_into_empty_settings() {
         "PreUserInteraction",
         "Stop",
         "StopFailure",
+        "SubagentStart",
+        "SubagentStop",
     ] {
         assert_eq!(
             event_hooks(&settings, event_name),
@@ -143,6 +145,8 @@ fn repeated_upsert_does_not_duplicate_dispatch_hook() {
         "PreUserInteraction",
         "Stop",
         "StopFailure",
+        "SubagentStart",
+        "SubagentStop",
     ] {
         assert_eq!(event_hooks(&settings, event_name).len(), 1);
         let hooks = event_hooks(&settings, event_name)[0]

@@ -4,7 +4,9 @@ use claude_board::{
     macos_window_behavior::{
         macos_window_collection_behavior, macos_window_level_for_mode, OverlayZOrderMode,
     },
-    window_position::{default_overlay_position, selected_monitor_index},
+    window_position::{
+        default_overlay_position, logical_monitor_bounds, selected_monitor_index, OVERLAY_WIDTH,
+    },
 };
 use tauri::{LogicalPosition, Manager, RunEvent, WindowEvent};
 
@@ -129,75 +131,55 @@ fn apply_overlay_position(app: &tauri::AppHandle) -> tauri::Result<()> {
         if let Some(monitor_index) = monitor_index {
             let monitor = &monitors[monitor_index];
             let scale_factor = monitor.scale_factor();
-            let logical_monitor_x = (monitor.position().x as f64 / scale_factor).round() as i32;
-            let logical_monitor_y = (monitor.position().y as f64 / scale_factor).round() as i32;
-            let logical_monitor_width = (monitor.size().width as f64 / scale_factor).round() as u32;
-            let logical_monitor_height = (monitor.size().height as f64 / scale_factor).round() as u32;
+            let (logical_monitor_x, logical_monitor_y, logical_monitor_width, _logical_monitor_height) =
+                logical_monitor_bounds(
+                    monitor.position().x,
+                    monitor.position().y,
+                    monitor.size().width,
+                    monitor.size().height,
+                    scale_factor,
+                );
             let logical_top_inset = (48.0 / scale_factor).round() as i32;
             let (x, y) = default_overlay_position(
                 logical_monitor_x,
                 logical_monitor_y,
                 logical_monitor_width,
-                420,
+                OVERLAY_WIDTH,
                 logical_top_inset,
             );
-            eprintln!(
-                "[claudeBoard] placing overlay monitor_index={monitor_index} physical_monitor_origin=({}, {}) physical_monitor_size={}x{} logical_monitor_origin=({}, {}) logical_monitor_size={}x{} scale_factor={} window_width=420 logical_top_inset={} final_position=({}, {})",
-                monitor.position().x,
-                monitor.position().y,
-                monitor.size().width,
-                monitor.size().height,
-                logical_monitor_x,
-                logical_monitor_y,
-                logical_monitor_width,
-                logical_monitor_height,
-                scale_factor,
-                logical_top_inset,
-                x,
-                y,
-            );
-            eprintln!(
-                "[claudeBoard] logical_position=({}, {}) scale_factor={}",
-                x, y, scale_factor,
-            );
-            eprintln!("[claudeBoard] is_visible_before={:?}", window.is_visible().ok());
             window.set_position(LogicalPosition::new(x, y))?;
-            eprintln!(
-                "[claudeBoard] pre_show_outer_position={:?}",
-                window.outer_position().ok()
-            );
-            eprintln!(
-                "[claudeBoard] pre_show_outer_position_logical={:?}",
-                window
-                    .outer_position()
-                    .ok()
-                    .map(|position| position.to_logical::<i32>(scale_factor))
-            );
             window.show()?;
-            eprintln!("[claudeBoard] is_visible_after_show={:?}", window.is_visible().ok());
             window.set_position(LogicalPosition::new(x, y))?;
-            eprintln!("[claudeBoard] actual_outer_position={:?}", window.outer_position().ok());
-            eprintln!("[claudeBoard] actual_inner_position={:?}", window.inner_position().ok());
-            eprintln!(
-                "[claudeBoard] actual_outer_position_logical={:?}",
-                window
-                    .outer_position()
-                    .ok()
-                    .map(|position| position.to_logical::<i32>(scale_factor))
-            );
-            eprintln!(
-                "[claudeBoard] actual_inner_position_logical={:?}",
-                window
-                    .inner_position()
-                    .ok()
-                    .map(|position| position.to_logical::<i32>(scale_factor))
-            );
-            eprintln!("[claudeBoard] actual_outer_size={:?}", window.outer_size().ok());
-            eprintln!("[claudeBoard] actual_inner_size={:?}", window.inner_size().ok());
         }
     }
 
     Ok(())
+}
+
+fn attach_window_handlers(window: &tauri::WebviewWindow) {
+    let _ = setup_always_visible_window(window);
+
+    let window_clone = window.clone();
+    window.on_window_event(move |event| {
+        #[cfg(target_os = "macos")]
+        match event {
+            WindowEvent::Focused(true) => {
+                let _ = set_window_level(
+                    &window_clone,
+                    macos_window_level_for_mode(OverlayZOrderMode::Foreground),
+                );
+            }
+            WindowEvent::Focused(false) => {
+                let _ = set_window_level(
+                    &window_clone,
+                    macos_window_level_for_mode(OverlayZOrderMode::Background),
+                );
+                let _ = keep_window_visible_when_inactive(&window_clone);
+                let _ = window_clone.show();
+            }
+            _ => {}
+        }
+    });
 }
 
 fn main() {
@@ -215,30 +197,8 @@ fn main() {
                 }
             })?;
 
-            // Set up window event handlers
-            // Window stays fixed in position and always visible, only z-index changes
             if let Some(window) = app.get_webview_window("main") {
-                // Ensure window never hides/minimizes when deactivated
-                let _ = setup_always_visible_window(&window);
-
-                let window_clone = window.clone();
-                window.on_window_event(move |event| {
-                    #[cfg(target_os = "macos")]
-                    match event {
-                        WindowEvent::Focused(true) => {
-                            eprintln!("[claudeBoard] window focused - raising z-index");
-                            // Raise window level to floating when focused
-                            let _ = set_window_level(&window_clone, macos_window_level_for_mode(OverlayZOrderMode::Foreground));
-                        }
-                        WindowEvent::Focused(false) => {
-                            eprintln!("[claudeBoard] window unfocused - keeping visible at background level");
-                            let _ = set_window_level(&window_clone, macos_window_level_for_mode(OverlayZOrderMode::Background));
-                            let _ = keep_window_visible_when_inactive(&window_clone);
-                            let _ = window_clone.show();
-                        }
-                        _ => {}
-                    }
-                });
+                attach_window_handlers(&window);
             }
 
             Ok(())
@@ -251,7 +211,10 @@ fn main() {
                 if let Some(window) = app_handle.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
-                    let _ = set_window_level(&window, macos_window_level_for_mode(OverlayZOrderMode::Foreground));
+                    let _ = set_window_level(
+                        &window,
+                        macos_window_level_for_mode(OverlayZOrderMode::Foreground),
+                    );
                 }
             }
         });

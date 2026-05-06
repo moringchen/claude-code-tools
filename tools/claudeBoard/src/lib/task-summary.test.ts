@@ -24,30 +24,28 @@ describe("task-summary", () => {
     expect(currentIslandSummary([], 0)).toBe("当前无任务");
   });
 
-  it("prioritizes needs-user tasks before running and completed tasks", () => {
+  it("prioritizes needs-user tasks before running tasks", () => {
     const summaries = buildIslandSummaries([
       task("1", "running", "build frontend"),
-      task("2", "completed", "write docs"),
       task("3", "needs_user", "approve command"),
     ]);
 
     expect(summaries).toEqual([
       "approve command - 待回复",
       "build frontend - 进行中",
-      "write docs - 完成",
     ]);
   });
 
-  it("uses the most recently changed task for the collapsed title", () => {
+  it("uses the highest-priority visible status for the collapsed title", () => {
     const tasks = [
       { ...task("1", "needs_user", "older approval"), updatedAt: "2026-04-30T00:00:01Z" },
       { ...task("2", "running", "newer running"), updatedAt: "2026-04-30T00:00:02Z" },
     ];
 
-    expect(currentIslandSummary(tasks, 0)).toBe("newer running - 进行中");
+    expect(currentIslandSummary(tasks, 0)).toBe("older approval - 待回复");
   });
 
-  it("ignores the cycle index and keeps the newest changed task visible", () => {
+  it("ignores the cycle index and keeps the same highest-priority summary visible", () => {
     const tasks = [
       { ...task("1", "running", "older task"), updatedAt: "2026-04-30T00:00:01Z" },
       { ...task("2", "running", "newest task"), updatedAt: "2026-04-30T00:00:02Z" },

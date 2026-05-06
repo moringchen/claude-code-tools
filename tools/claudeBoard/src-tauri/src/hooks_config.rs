@@ -1,6 +1,6 @@
 use serde_json::{json, Map, Value};
 
-const HOOK_EVENTS: [&str; 11] = [
+const HOOK_EVENTS: [&str; 13] = [
     "TaskCreated",
     "TaskCompleted",
     "PermissionRequest",
@@ -12,6 +12,8 @@ const HOOK_EVENTS: [&str; 11] = [
     "PreUserInteraction",
     "Stop",
     "StopFailure",
+    "SubagentStart",
+    "SubagentStop",
 ];
 
 pub fn upsert_hooks(settings_json: &str, dispatch_command: &str) -> serde_json::Result<String> {

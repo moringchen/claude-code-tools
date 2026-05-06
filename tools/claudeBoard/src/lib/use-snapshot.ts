@@ -9,6 +9,7 @@ const EMPTY_SNAPSHOT: Snapshot = {
     running: 0,
   },
   tasks: [],
+  notifications: [],
 };
 
 export function useSnapshot() {
@@ -26,6 +27,16 @@ export function useSnapshot() {
             needsUser: nextSnapshot.counts.needsUser,
             completed: nextSnapshot.counts.completed,
             running: nextSnapshot.counts.running,
+            taskCount: nextSnapshot.tasks.length,
+            tasks: nextSnapshot.tasks.map((task) => ({
+              taskId: task.taskId,
+              sessionId: task.sessionId,
+              title: task.title,
+              status: task.status,
+              source: task.source,
+              pid: task.pid,
+              updatedAt: task.updatedAt,
+            })),
           });
           setSnapshot(nextSnapshot);
         }

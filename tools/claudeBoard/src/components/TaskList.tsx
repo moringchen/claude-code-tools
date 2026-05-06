@@ -8,6 +8,18 @@ type TaskListProps = {
 };
 
 export function TaskList({ tasks, onTaskClick }: TaskListProps) {
+  console.log("[TaskList] render:", {
+    taskCount: tasks.length,
+    tasks: tasks.map((task) => ({
+      taskId: task.taskId,
+      sessionId: task.sessionId,
+      title: task.title,
+      status: task.status,
+      source: task.source,
+      pid: task.pid,
+    })),
+  });
+
   return (
     <ul className="island-task-list">
       {tasks.map((task) => {

@@ -1,19 +1,22 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { OverlayBar } from "./components/OverlayBar";
 import { TaskList } from "./components/TaskList";
-import { focusTask } from "./lib/api";
+import { ackNotification, focusTask } from "./lib/api";
 import { createOverlayLogicalSize } from "./lib/overlay-window";
-import { sortTasks } from "./lib/task-model";
 import { currentIslandSummary } from "./lib/task-summary";
 import { useSnapshot } from "./lib/use-snapshot";
+import { sortTasks } from "./lib/task-model";
 
 export default function App() {
   const [expanded, setExpanded] = useState(false);
   const [summaryIndex] = useState(0);
   const snapshot = useSnapshot();
+  const playedNotificationIds = useRef<Set<number>>(new Set());
+  const notifications = snapshot.notifications ?? [];
 
-  const sortedTasks = useMemo(() => sortTasks(snapshot.tasks), [snapshot.tasks]);
+  const visibleTasks = useMemo(() => snapshot.tasks, [snapshot.tasks]);
+  const sortedTasks = useMemo(() => sortTasks(visibleTasks), [visibleTasks]);
   const summary = useMemo(
     () => currentIslandSummary(sortedTasks, summaryIndex),
     [sortedTasks, summaryIndex],
@@ -23,7 +26,6 @@ export default function App() {
     void getCurrentWindow().startDragging();
   };
 
-  // 根据展开状态和任务数量调整窗口大小（宽度固定为260px）
   useEffect(() => {
     const updateWindowSize = async () => {
       const window = getCurrentWindow();
@@ -41,6 +43,30 @@ export default function App() {
     document.addEventListener("contextmenu", preventContextMenu);
     return () => document.removeEventListener("contextmenu", preventContextMenu);
   }, []);
+
+  useEffect(() => {
+    const currentNotificationIds = new Set(notifications.map((notification) => notification.id));
+    for (const notificationId of playedNotificationIds.current) {
+      if (!currentNotificationIds.has(notificationId)) {
+        playedNotificationIds.current.delete(notificationId);
+      }
+    }
+
+    for (const notification of notifications) {
+      if (playedNotificationIds.current.has(notification.id)) {
+        continue;
+      }
+      playedNotificationIds.current.add(notification.id);
+
+      const audio = new Audio(`/sounds/${notification.soundType}.mp3`);
+      void audio.play()
+        .then(() => ackNotification(notification.id))
+        .catch((error) => {
+          playedNotificationIds.current.delete(notification.id);
+          console.error("[sound] playback failed:", error);
+        });
+    }
+  }, [notifications]);
 
   return (
     <div className={expanded ? "island-shell island-shell-expanded" : "island-shell"}>

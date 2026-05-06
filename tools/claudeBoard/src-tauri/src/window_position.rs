@@ -1,5 +1,29 @@
 pub type MonitorBounds = (i32, i32, u32, u32, f64);
 
+pub const OVERLAY_WIDTH: i32 = 260;
+pub const DEBUG_WINDOW_WIDTH: i32 = 420;
+pub const DEBUG_WINDOW_HEIGHT: i32 = 480;
+pub const WINDOW_GAP: i32 = 16;
+
+pub fn logical_monitor_bounds(
+    monitor_x: i32,
+    monitor_y: i32,
+    monitor_width: u32,
+    monitor_height: u32,
+    scale_factor: f64,
+) -> (i32, i32, u32, u32) {
+    let logical_monitor_x = (monitor_x as f64 / scale_factor).round() as i32;
+    let logical_monitor_y = (monitor_y as f64 / scale_factor).round() as i32;
+    let logical_monitor_width = (monitor_width as f64 / scale_factor).round() as u32;
+    let logical_monitor_height = (monitor_height as f64 / scale_factor).round() as u32;
+    (
+        logical_monitor_x,
+        logical_monitor_y,
+        logical_monitor_width,
+        logical_monitor_height,
+    )
+}
+
 pub fn default_overlay_position(
     monitor_x: i32,
     monitor_y: i32,
@@ -10,6 +34,10 @@ pub fn default_overlay_position(
     let centered_x = monitor_x + ((monitor_width as i32 - window_width) / 2);
     let top_y = monitor_y + top_inset;
     (centered_x, top_y)
+}
+
+pub fn debug_window_position(overlay_x: i32, overlay_y: i32, overlay_width: i32) -> (i32, i32) {
+    (overlay_x + overlay_width + WINDOW_GAP, overlay_y)
 }
 
 pub fn monitor_contains_point(

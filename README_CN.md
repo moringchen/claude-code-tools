@@ -31,9 +31,10 @@ source ~/.zshrc
 
 **主要功能：**
 - 立即设置当前终端窗口标题
-- 在 Ghostty + 交互式 zsh 中，禁用当前 shell 会话后续的标题改写
+- 在 macOS 的交互式 zsh 中自动安装 `claude()` wrapper
+- 启动 Claude Code 时注入 `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1`，避免覆盖你设置的标题
 - 保持单一命令入口：`titlename "..."`
-- 新开一个 shell 后自动恢复 Ghostty 默认标题行为
+- 独立的 `titlename` 可执行文件仍然保留为一次性回退入口
 
 **快速安装：**
 ```bash
@@ -41,13 +42,13 @@ curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/t
 source ~/.zshrc
 ```
 
-### 3. [Claude Task Window](tools/claudeTaskWindow/)
+### 3. [claudeBoard](tools/claudeBoard/)
 
 用于展示 Claude Code 任务活动的桌面悬浮层，提供用户级全局 hooks、顶部常驻条、任务统计、点击聚焦，以及通知与语音播报开关。
 
 **快速开始：**
 ```bash
-cd tools/claudeTaskWindow
+cd tools/claudeBoard
 npm install
 npm test
 ```
@@ -73,7 +74,7 @@ claudetools/
     │   ├── setup_claude_completion.sh
     │   ├── README.md                # 工具文档（英文）
     │   └── README_CN.md             # 工具文档（中文）
-    └── claudeTaskWindow/            # Claude Task Window 桌面悬浮工具
+    └── claudeBoard/            # claudeBoard 桌面悬浮工具
         ├── README.md                # 工具文档（英文）
         ├── README_CN.md             # 工具文档（中文）
         ├── package.json

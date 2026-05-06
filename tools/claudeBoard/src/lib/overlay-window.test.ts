@@ -13,7 +13,7 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 describe("overlay-window", () => {
   it("keeps the last working native startup footprint", () => {
-    expect(COLLAPSED_OVERLAY_SIZE).toEqual({ width: 260, height: 44 });
+    expect(COLLAPSED_OVERLAY_SIZE).toEqual({ width: 260, height: 64 });
     expect(getOverlayWindowSize(false)).toEqual(COLLAPSED_OVERLAY_SIZE);
   });
 

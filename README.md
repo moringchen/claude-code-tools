@@ -31,9 +31,10 @@ Set the current terminal window title with a single `titlename` command.
 
 **Key Features:**
 - Set the current terminal window title immediately
-- In Ghostty + interactive zsh, disable later title rewrites for the current shell session
+- Automatically install a zsh `claude()` wrapper on macOS interactive zsh
+- Launch Claude Code with `CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1` so it does not overwrite your chosen title
 - Keep the command surface to a single `titlename "..."` invocation
-- Restore normal Ghostty title automation automatically in a new shell
+- Leave the standalone `titlename` executable as a one-shot fallback
 
 **Quick Install:**
 ```bash
@@ -41,13 +42,13 @@ curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/t
 source ~/.zshrc
 ```
 
-### 3. [Claude Task Window](tools/claudeTaskWindow/)
+### 3. [claudeBoard](tools/claudeBoard/)
 
 A desktop overlay for Claude Code task activity with user-level global hooks, an always-visible top bar, task counts, click-to-focus actions, and notification or voice toggles.
 
 **Quick Start:**
 ```bash
-cd tools/claudeTaskWindow
+cd tools/claudeBoard
 npm install
 npm test
 ```
@@ -73,7 +74,7 @@ claudetools/
     │   ├── setup_claude_completion.sh
     │   ├── README.md                # Tool documentation (EN)
     │   └── README_CN.md             # Tool documentation (CN)
-    └── claudeTaskWindow/            # Claude Task Window desktop overlay
+    └── claudeBoard/            # claudeBoard desktop overlay
         ├── README.md                # Tool documentation (EN)
         ├── README_CN.md             # Tool documentation (CN)
         ├── package.json

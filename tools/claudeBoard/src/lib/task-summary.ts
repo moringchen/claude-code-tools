@@ -41,6 +41,13 @@ export function currentIslandSummary(tasks: TaskCard[], _index: number): string 
     return "当前无任务";
   }
 
-  const [latestTask] = [...tasks].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
-  return titleWithStatus(latestTask);
+  const [highestPriorityTask] = [...tasks].sort((left, right) => {
+    const byStatus = summaryRank[left.status] - summaryRank[right.status];
+    if (byStatus !== 0) {
+      return byStatus;
+    }
+    return right.updatedAt.localeCompare(left.updatedAt);
+  });
+
+  return titleWithStatus(highestPriorityTask);
 }
