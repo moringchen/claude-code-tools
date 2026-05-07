@@ -12,7 +12,9 @@ describe("OverlayBar", () => {
       <OverlayBar
         summary="需确认：approve command"
         isExpanded={false}
+        isCompact={false}
         onToggle={() => {}}
+        onEnterCompactMode={() => {}}
         onDragStart={() => {}}
       />,
     );
@@ -22,13 +24,16 @@ describe("OverlayBar", () => {
 
   it("toggles expansion for a stationary click", () => {
     const onToggle = vi.fn();
+    const onEnterCompactMode = vi.fn();
     const onDragStart = vi.fn();
 
     render(
       <OverlayBar
         summary="当前无任务"
         isExpanded={false}
+        isCompact={false}
         onToggle={onToggle}
+        onEnterCompactMode={onEnterCompactMode}
         onDragStart={onDragStart}
       />,
     );
@@ -38,7 +43,51 @@ describe("OverlayBar", () => {
     fireEvent.click(button);
 
     expect(onToggle).toHaveBeenCalledTimes(1);
+    expect(onEnterCompactMode).not.toHaveBeenCalled();
     expect(onDragStart).not.toHaveBeenCalled();
+  });
+
+  it("enters compact mode on double click", () => {
+    const onToggle = vi.fn();
+    const onEnterCompactMode = vi.fn();
+
+    render(
+      <OverlayBar
+        summary="当前无任务"
+        isExpanded={false}
+        isCompact={false}
+        onToggle={onToggle}
+        onEnterCompactMode={onEnterCompactMode}
+        onDragStart={() => {}}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "当前无任务" });
+    fireEvent.doubleClick(button);
+
+    expect(onEnterCompactMode).toHaveBeenCalledTimes(1);
+    expect(onToggle).not.toHaveBeenCalled();
+  });
+
+  it("restores collapsed mode with a single click while compact", () => {
+    const onToggle = vi.fn();
+
+    render(
+      <OverlayBar
+        summary="待 1 / 完 2"
+        isExpanded={false}
+        isCompact={true}
+        onToggle={onToggle}
+        onEnterCompactMode={() => {}}
+        onDragStart={() => {}}
+      />,
+    );
+
+    const button = screen.getByRole("button", { name: "待 1 / 完 2" });
+    fireEvent.mouseDown(button, { clientX: 100, clientY: 100 });
+    fireEvent.click(button);
+
+    expect(onToggle).toHaveBeenCalledTimes(1);
   });
 
   it("starts dragging after pointer movement crosses threshold", () => {
@@ -49,7 +98,9 @@ describe("OverlayBar", () => {
       <OverlayBar
         summary="当前无任务"
         isExpanded={false}
+        isCompact={false}
         onToggle={onToggle}
+        onEnterCompactMode={() => {}}
         onDragStart={onDragStart}
       />,
     );

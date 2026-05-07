@@ -183,7 +183,7 @@ impl TaskStore {
         changed_status
     }
 
-    pub fn replace_scanned_tasks(&mut self, tasks: Vec<TaskCard>, alive_pids: &[u32], _occurred_at: &str) {
+    pub fn replace_scanned_tasks(&mut self, tasks: Vec<TaskCard>, alive_pids: &[u32], occurred_at: &str) {
         let previous_count = self.scanned_tasks.len();
         let next_count = tasks.len();
         let alive_pids_set: std::collections::HashSet<u32> = alive_pids.iter().copied().collect();
@@ -192,6 +192,23 @@ impl TaskStore {
             "[claudeBoard] store replace_scanned_tasks previous_count={} next_count={} alive_pids={:?}",
             previous_count, next_count, alive_pids
         );
+
+        let scanned_by_pid = tasks
+            .iter()
+            .filter(|task| alive_pids_set.contains(&task.pid))
+            .map(|task| (task.pid, task))
+            .collect::<std::collections::HashMap<_, _>>();
+
+        for hook_task in self.hook_tasks.values_mut() {
+            if let Some(scanned_task) = scanned_by_pid.get(&hook_task.pid) {
+                if hook_task.title == "workspace" || hook_task.title == "unknown" {
+                    hook_task.title = scanned_task.title.clone();
+                }
+                if hook_task.window_target.host_kind == "unknown" {
+                    hook_task.window_target = scanned_task.window_target.clone();
+                }
+            }
+        }
 
         self.scanned_tasks = tasks
             .into_iter()
@@ -226,12 +243,10 @@ impl TaskStore {
 
         for task_id in hook_pids_to_remove {
             eprintln!("[claudeBoard] removing dead hook task id={}", task_id);
-            if let Some(task) = self.hook_tasks.remove(&task_id) {
-                self.scanned_tasks
-                    .retain(|_, scanned| scanned.session_id != task.session_id);
-                self.session_records.remove(&task.session_id);
-                self.closed_sessions
-                    .insert(task.session_id.clone(), _occurred_at.to_string());
+            if let Some(task) = self.hook_tasks.get_mut(&task_id) {
+                task.liveness = TaskLiveness::Dead;
+                task.removed_at = Some(occurred_at.to_string());
+                task.removed_reason = Some(crate::model::RemovalReason::ProcessExited);
             }
         }
     }
@@ -305,6 +320,16 @@ impl TaskStore {
             .count();
 
         let mut tasks = all_tasks;
+
+        for task in &mut tasks {
+            if let Some(record) = self.session_records.get(&task.session_id) {
+                if !record.last_conversation_content.is_empty()
+                    && (task.title == "workspace" || task.title == "unknown")
+                {
+                    task.title = record.last_conversation_content.clone();
+                }
+            }
+        }
 
         tasks.sort_by(|left, right| {
             let rank = |status: &TaskStatus| match status {

@@ -5,7 +5,9 @@ import { markUserInteraction } from "../lib/sound";
 type OverlayBarProps = {
   summary: string;
   isExpanded: boolean;
+  isCompact: boolean;
   onToggle: () => void;
+  onEnterCompactMode: () => void;
   onDragStart: () => void;
 };
 
@@ -18,11 +20,10 @@ type DragState = {
 
 const DRAG_THRESHOLD = 4;
 
-export function OverlayBar({ summary, isExpanded, onToggle, onDragStart }: OverlayBarProps) {
+export function OverlayBar({ summary, isExpanded, isCompact, onToggle, onEnterCompactMode, onDragStart }: OverlayBarProps) {
   const dragStateRef = useRef<DragState | null>(null);
 
   const handleMouseDown = (event: ReactMouseEvent<HTMLButtonElement>) => {
-    // Mark user interaction for audio playback
     markUserInteraction();
 
     dragStateRef.current = {
@@ -59,6 +60,13 @@ export function OverlayBar({ summary, isExpanded, onToggle, onDragStart }: Overl
     onToggle();
   };
 
+  const handleDoubleClick = () => {
+    dragStateRef.current = null;
+    if (!isCompact) {
+      onEnterCompactMode();
+    }
+  };
+
   const resetDragState = () => {
     if (!dragStateRef.current) {
       return;
@@ -78,6 +86,7 @@ export function OverlayBar({ summary, isExpanded, onToggle, onDragStart }: Overl
       className="island-bar"
       aria-expanded={isExpanded}
       onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseLeave={resetDragState}

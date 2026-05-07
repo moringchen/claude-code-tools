@@ -34,6 +34,13 @@ body {
   border-radius: 18px;
 }
 
+.island-shell-compact {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  border-radius: 999px;
+}
+
 .island-bar {
   display: flex;
   min-height: 42px;

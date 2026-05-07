@@ -229,16 +229,85 @@ describe("App", () => {
     expect(screen.getByText("等待授权 - 待回复")).toBeTruthy();
   });
 
-  it("shows a single collapsed task summary", () => {
+  it("enters compact mode on double click and restores collapsed mode on single click", async () => {
     vi.mocked(useSnapshot).mockReturnValue({
-      counts: { total: 1, needsUser: 0, completed: 0, running: 1 },
-      tasks: [runningTask],
+      counts: { total: 2, needsUser: 1, completed: 1, running: 0 },
+      tasks: [
+        {
+          ...runningTask,
+          taskId: "task-waiting",
+          sessionId: "session-waiting",
+          title: "等待授权",
+          status: "needs_user",
+          updatedAt: "2026-05-05T15:01:00Z",
+        },
+        {
+          ...runningTask,
+          taskId: "task-complete",
+          sessionId: "session-complete",
+          title: "已经完成",
+          status: "completed",
+          updatedAt: "2026-05-05T15:02:00Z",
+          completedAt: "2026-05-05T15:02:00Z",
+        },
+      ],
       notifications: emptyNotifications,
     });
 
     render(<App />);
-    expect(screen.getByText("测试任务 - 进行中")).toBeTruthy();
+
+    await waitFor(() => expect(setSize).toHaveBeenCalledWith(expect.objectContaining({ width: 260, height: 64 })));
+
+    const summaryButton = screen.getByRole("button", { name: "等待授权 - 待回复" });
+    fireEvent.doubleClick(summaryButton);
+
+    await waitFor(() => expect(setSize).toHaveBeenLastCalledWith(expect.objectContaining({ width: 120, height: 48 })));
+    expect(screen.getByRole("button", { name: "待 1 / 完 1" })).toBeTruthy();
     expect(screen.queryByRole("list")).toBeNull();
+
+    const compactButton = screen.getByRole("button", { name: "待 1 / 完 1" });
+    fireEvent.mouseDown(compactButton, { clientX: 40, clientY: 40 });
+    fireEvent.click(compactButton);
+
+    await waitFor(() => expect(setSize).toHaveBeenLastCalledWith(expect.objectContaining({ width: 260, height: 64 })));
+    expect(screen.getByRole("button", { name: "等待授权 - 待回复" })).toBeTruthy();
+  });
+
+  it("keeps focusTask wired only to expanded task rows", async () => {
+    vi.mocked(useSnapshot).mockReturnValue({
+      counts: { total: 2, needsUser: 0, completed: 0, running: 2 },
+      tasks: [
+        runningTask,
+        {
+          ...runningTask,
+          taskId: "task-2",
+          sessionId: "session-2",
+          title: "第二个任务",
+          updatedAt: "2026-04-30T00:00:02Z",
+        },
+      ],
+      notifications: emptyNotifications,
+    });
+    vi.mocked(focusTask).mockResolvedValue(undefined);
+
+    render(<App />);
+
+    const summaryButton = screen.getByRole("button", { name: "第二个任务 - 进行中" });
+    fireEvent.doubleClick(summaryButton);
+    expect(vi.mocked(focusTask)).not.toHaveBeenCalled();
+
+    const compactButton = await screen.findByRole("button", { name: "待 0 / 完 0" });
+    fireEvent.mouseDown(compactButton, { clientX: 40, clientY: 40 });
+    fireEvent.click(compactButton);
+
+    const restoredButton = await screen.findByRole("button", { name: "第二个任务 - 进行中" });
+    fireEvent.mouseDown(restoredButton, { clientX: 40, clientY: 40 });
+    fireEvent.click(restoredButton);
+
+    const taskRow = await screen.findByRole("button", { name: /测试任务/i });
+    fireEvent.click(taskRow);
+
+    await waitFor(() => expect(focusTask).toHaveBeenCalledWith("task-1"));
   });
 
   it("resizes the overlay window when expanding the task list", async () => {

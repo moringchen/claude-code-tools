@@ -75,6 +75,71 @@ async fn debug_snapshot_includes_scan_and_hook_diagnostics() {
 }
 
 #[tokio::test]
+async fn focus_endpoint_returns_not_found_for_unknown_task() {
+    let store = Arc::new(Mutex::new(TaskStore::default()));
+    let app = build_router(store, || Ok(Vec::new()), || "2026-05-07T12:00:00Z".to_string());
+
+    let response = app
+        .oneshot(Request::post("/tasks/missing/focus").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn focus_endpoint_returns_accepted_for_live_task() {
+    let store = Arc::new(Mutex::new(TaskStore::default()));
+    let app = build_router(
+        Arc::clone(&store),
+        || Ok(Vec::new()),
+        || "2026-05-07T12:05:00Z".to_string(),
+    );
+
+    store.lock().unwrap().apply(claude_board::model::HookEvent {
+        event_type: claude_board::model::HookEventType::TaskCreated,
+        session_id: "session-focus-live".into(),
+        agent_id: None,
+        pid: 780,
+        title: "Focus me".into(),
+        conversation_content: Some("Focus me".into()),
+        occurred_at: "2026-05-07T12:05:00Z".into(),
+    });
+    store.lock().unwrap().replace_scanned_tasks(
+        vec![claude_board::model::TaskCard {
+            task_id: "scan:session-focus-live:780".into(),
+            session_id: "session-focus-live".into(),
+            pid: 780,
+            title: "Focus me".into(),
+            status: TaskStatus::IdleOrUnknown,
+            source: "scan_recovered".into(),
+            window_target: claude_board::model::WindowTarget {
+                host_kind: "terminal".into(),
+                app: "Finder".into(),
+                descriptor: "finder".into(),
+                tab_id: None,
+                pane_id: None,
+            },
+            started_at: "2026-05-07T12:05:00Z".into(),
+            updated_at: "2026-05-07T12:05:00Z".into(),
+            completed_at: None,
+            liveness: claude_board::model::TaskLiveness::Alive,
+            removed_at: None,
+            removed_reason: None,
+        }],
+        &[780],
+        "2026-05-07T12:05:01Z",
+    );
+
+    let response = app
+        .oneshot(Request::post("/tasks/session-focus-live/focus").body(Body::empty()).unwrap())
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::ACCEPTED);
+}
+
+#[tokio::test]
 async fn post_event_does_not_require_backend_sound_playback_to_queue_notifications() {
     let store = Arc::new(Mutex::new(TaskStore::default()));
     let app = build_router(store, || Ok(Vec::new()), || "2026-05-05T16:10:00Z".to_string());
@@ -388,7 +453,7 @@ async fn maps_claude_code_hook_events_to_task_statuses() {
             "claude_board_title": hook_event_name,
             "claude_board_occurred_at": "2026-04-24T18:20:00Z",
             "cwd": "/workspace",
-            "agent_id": if hook_event_name.starts_with("Subagent") { Some("agent-1") } else { None }
+            "agent_id": if hook_event_name == "SubagentStop" { Some("agent-1") } else { None }
         });
 
         let response = app
@@ -903,11 +968,14 @@ async fn refresh_does_not_persist_removed_dead_hook_tasks() {
     assert_eq!(response.status(), StatusCode::ACCEPTED);
     let saved = std::fs::read_to_string(&temp_path).unwrap();
     let snapshot: TaskSnapshot = serde_json::from_str(&saved).unwrap();
-    assert!(snapshot.tasks.is_empty());
+    assert!(snapshot
+        .tasks
+        .iter()
+        .any(|task| task.session_id == "session-dead-completed" && task.liveness == claude_board::model::TaskLiveness::Dead));
     assert!(snapshot
         .sessions
         .iter()
-        .all(|record| record.session_id != "session-dead-completed"));
+        .any(|record| record.session_id == "session-dead-completed"));
 
     let _ = std::fs::remove_file(temp_path);
 }

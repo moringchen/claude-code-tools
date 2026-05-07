@@ -6,28 +6,38 @@ export const COLLAPSED_OVERLAY_SIZE = {
   height: 64,
 } as const;
 
+export const COMPACT_OVERLAY_SIZE = {
+  width: 120,
+  height: 48,
+} as const;
+
 export const EXPANDED_OVERLAY_SIZE = {
   width: 260,
   height: 320,
 } as const;
 
-// Task row height (44px) + gap (6px) = ~50px per task, plus header (44px) and padding (20px)
+export type OverlayMode = "collapsed" | "expanded" | "compact";
+
 const HEADER_HEIGHT = 44;
 const TASK_ROW_HEIGHT = 50;
 const PADDING = 20;
 
-export function getOverlayWindowSize(expanded: boolean, taskCount = 0) {
-  if (!expanded) {
+export function getOverlayWindowSize(mode: OverlayMode, taskCount = 0) {
+  if (mode === "collapsed") {
     return COLLAPSED_OVERLAY_SIZE;
   }
-  // Calculate dynamic height based on task count
+
+  if (mode === "compact") {
+    return COMPACT_OVERLAY_SIZE;
+  }
+
   const contentHeight = HEADER_HEIGHT + (taskCount * TASK_ROW_HEIGHT) + PADDING;
   const height = Math.min(Math.max(contentHeight, 100), EXPANDED_OVERLAY_SIZE.height);
   return { width: EXPANDED_OVERLAY_SIZE.width, height };
 }
 
-export function createOverlayLogicalSize(expanded: boolean, taskCount = 0) {
-  const { width, height } = getOverlayWindowSize(expanded, taskCount);
+export function createOverlayLogicalSize(mode: OverlayMode, taskCount = 0) {
+  const { width, height } = getOverlayWindowSize(mode, taskCount);
   return new LogicalSize(width, height);
 }
 

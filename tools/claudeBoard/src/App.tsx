@@ -4,13 +4,13 @@ import { OverlayBar } from "./components/OverlayBar";
 import { TaskList } from "./components/TaskList";
 import { ackNotification, focusTask } from "./lib/api";
 import { playSound } from "./lib/sound";
-import { createOverlayLogicalSize } from "./lib/overlay-window";
-import { currentIslandSummary } from "./lib/task-summary";
+import { createOverlayLogicalSize, type OverlayMode } from "./lib/overlay-window";
+import { buildCompactSummary, currentIslandSummary } from "./lib/task-summary";
 import { useSnapshot } from "./lib/use-snapshot";
 import { sortTasks } from "./lib/task-model";
 
 export default function App() {
-  const [expanded, setExpanded] = useState(false);
+  const [overlayMode, setOverlayMode] = useState<OverlayMode>("collapsed");
   const [summaryIndex] = useState(0);
   const snapshot = useSnapshot();
   const playedNotificationIds = useRef<Set<number>>(new Set());
@@ -18,10 +18,15 @@ export default function App() {
 
   const visibleTasks = useMemo(() => snapshot.tasks, [snapshot.tasks]);
   const sortedTasks = useMemo(() => sortTasks(visibleTasks), [visibleTasks]);
-  const summary = useMemo(
-    () => currentIslandSummary(sortedTasks, summaryIndex),
-    [sortedTasks, summaryIndex],
-  );
+  const summary = useMemo(() => {
+    if (overlayMode === "compact") {
+      return buildCompactSummary(sortedTasks);
+    }
+
+    return currentIslandSummary(sortedTasks, summaryIndex);
+  }, [overlayMode, sortedTasks, summaryIndex]);
+  const isExpanded = overlayMode === "expanded";
+  const isCompact = overlayMode === "compact";
 
   const startDrag = () => {
     void getCurrentWindow().startDragging();
@@ -30,11 +35,11 @@ export default function App() {
   useEffect(() => {
     const updateWindowSize = async () => {
       const window = getCurrentWindow();
-      await window.setSize(createOverlayLogicalSize(expanded, sortedTasks.length));
+      await window.setSize(createOverlayLogicalSize(overlayMode, sortedTasks.length));
     };
 
     void updateWindowSize();
-  }, [expanded, sortedTasks.length]);
+  }, [overlayMode, sortedTasks.length]);
 
   useEffect(() => {
     const preventContextMenu = (event: MouseEvent) => {
@@ -69,14 +74,28 @@ export default function App() {
   }, [notifications]);
 
   return (
-    <div className={expanded ? "island-shell island-shell-expanded" : "island-shell"}>
+    <div
+      className={[
+        "island-shell",
+        isExpanded ? "island-shell-expanded" : "",
+        isCompact ? "island-shell-compact" : "",
+      ].filter(Boolean).join(" ")}
+    >
       <OverlayBar
         summary={summary}
-        isExpanded={expanded}
-        onToggle={() => setExpanded((current) => !current)}
+        isExpanded={isExpanded}
+        isCompact={isCompact}
+        onToggle={() => setOverlayMode((current) => {
+          if (current === "compact") {
+            return "collapsed";
+          }
+
+          return current === "expanded" ? "collapsed" : "expanded";
+        })}
+        onEnterCompactMode={() => setOverlayMode("compact")}
         onDragStart={startDrag}
       />
-      {expanded ? <TaskList tasks={sortedTasks} onTaskClick={(task) => void focusTask(task.taskId)} /> : null}
+      {isExpanded ? <TaskList tasks={sortedTasks} onTaskClick={(task) => void focusTask(task.taskId)} /> : null}
     </div>
   );
 }

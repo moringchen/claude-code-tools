@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TaskCard } from "./task-model";
-import { buildIslandSummaries, currentIslandSummary } from "./task-summary";
+import { buildCompactSummary, buildIslandSummaries, currentIslandSummary } from "./task-summary";
 
 const task = (id: string, status: TaskCard["status"], title: string): TaskCard => ({
   taskId: id,
@@ -61,5 +61,14 @@ describe("task-summary", () => {
 
     expect(currentIslandSummary(tasks, 0)).toBe("planned task");
     expect(buildIslandSummaries(tasks)).toEqual(["planned task"]);
+  });
+
+  it("builds the compact waiting and completed counters", () => {
+    expect(buildCompactSummary([
+      task("1", "needs_user", "approve"),
+      task("2", "completed", "done"),
+      task("3", "running", "work"),
+      task("4", "completed", "done again"),
+    ])).toBe("待 1 / 完 2");
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { invoke } from "@tauri-apps/api/core";
 import {
   COLLAPSED_OVERLAY_SIZE,
+  COMPACT_OVERLAY_SIZE,
   EXPANDED_OVERLAY_SIZE,
   getOverlayWindowSize,
   requestOverlayRaise,
@@ -14,13 +15,18 @@ vi.mock("@tauri-apps/api/core", () => ({
 describe("overlay-window", () => {
   it("keeps the last working native startup footprint", () => {
     expect(COLLAPSED_OVERLAY_SIZE).toEqual({ width: 260, height: 64 });
-    expect(getOverlayWindowSize(false)).toEqual(COLLAPSED_OVERLAY_SIZE);
+    expect(getOverlayWindowSize("collapsed")).toEqual(COLLAPSED_OVERLAY_SIZE);
+  });
+
+  it("uses a narrower footprint for compact mode", () => {
+    expect(COMPACT_OVERLAY_SIZE).toEqual({ width: 120, height: 48 });
+    expect(getOverlayWindowSize("compact")).toEqual(COMPACT_OVERLAY_SIZE);
   });
 
   it("sizes expanded overlay from task count up to the maximum height", () => {
     expect(EXPANDED_OVERLAY_SIZE).toEqual({ width: 260, height: 320 });
-    expect(getOverlayWindowSize(true)).toEqual({ width: 260, height: 100 });
-    expect(getOverlayWindowSize(true, 8)).toEqual(EXPANDED_OVERLAY_SIZE);
+    expect(getOverlayWindowSize("expanded")).toEqual({ width: 260, height: 100 });
+    expect(getOverlayWindowSize("expanded", 8)).toEqual(EXPANDED_OVERLAY_SIZE);
   });
 
   it("requests native overlay raise through the Tauri command bridge", () => {

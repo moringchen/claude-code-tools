@@ -1,5 +1,6 @@
 use std::io;
 use std::path::PathBuf;
+use std::process::Command;
 use std::sync::{Arc, Mutex};
 
 use axum::{
@@ -13,8 +14,10 @@ use tower_http::cors::{Any, CorsLayer};
 
 use crate::{
     event_log::append_event_log,
+    focus::{resolve_focus, FocusRequest, HostActivator},
     model::{
         DebugSnapshot, HookDebugDisposition, HookDebugEntry, HookEvent, HookEventType, TaskSnapshot,
+        TaskLiveness,
     },
     scan::{compute_scan, rebuild_tasks_from_rows},
     session_meta::{get_task_title_by_pid, get_task_title_by_session_id},
@@ -55,6 +58,26 @@ pub struct AppState {
     pub store: Arc<Mutex<TaskStore>>,
     pub scan_refresh: Arc<dyn Fn() -> io::Result<()> + Send + Sync>,
     pub state_path: Option<PathBuf>,
+}
+
+struct ProcessHostActivator;
+
+impl HostActivator for ProcessHostActivator {
+    fn activate(&self, attempt: &crate::focus::FocusAttempt) -> bool {
+        let command = if cfg!(target_os = "macos") {
+            crate::focus::macos::command_for(attempt)
+        } else if cfg!(target_os = "windows") {
+            crate::focus::windows::command_for(attempt)
+        } else {
+            return false;
+        };
+
+        Command::new(&command.program)
+            .args(&command.args)
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
 }
 
 // Claude Code native hook event format
@@ -306,6 +329,7 @@ where
         .route("/refresh", post(post_refresh))
         .route("/snapshot", get(get_snapshot))
         .route("/debug/snapshot", get(get_debug_snapshot))
+        .route("/tasks/:id/focus", post(post_focus_task))
         .route("/notifications/:id/ack", post(post_ack_notification))
         .layer(
             CorsLayer::new()
@@ -411,6 +435,43 @@ async fn post_ack_notification(
         }
     }
     StatusCode::ACCEPTED
+}
+
+async fn post_focus_task(
+    State(state): State<AppState>,
+    Path(task_id): Path<String>,
+) -> StatusCode {
+    let task = {
+        let store = state.store.lock().unwrap();
+        store
+            .snapshot()
+            .tasks
+            .into_iter()
+            .find(|task| task.task_id == task_id)
+    };
+
+    let Some(task) = task else {
+        return StatusCode::NOT_FOUND;
+    };
+
+    if task.liveness == TaskLiveness::Dead {
+        return StatusCode::NOT_FOUND;
+    }
+
+    let activator = ProcessHostActivator;
+    let focused = resolve_focus(
+        &activator,
+        &FocusRequest {
+            task_id: task.task_id,
+            window_target: task.window_target,
+        },
+    );
+
+    if focused {
+        StatusCode::ACCEPTED
+    } else {
+        StatusCode::BAD_GATEWAY
+    }
 }
 
 async fn get_snapshot(State(state): State<AppState>) -> Json<TaskSnapshot> {

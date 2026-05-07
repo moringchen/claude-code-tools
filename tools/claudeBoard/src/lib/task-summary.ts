@@ -36,6 +36,12 @@ export function buildIslandSummaries(tasks: TaskCard[]): string[] {
     .map(titleWithStatus);
 }
 
+export function buildCompactSummary(tasks: TaskCard[]): string {
+  const waiting = tasks.filter((task) => task.status === "needs_user").length;
+  const completed = tasks.filter((task) => task.status === "completed").length;
+  return `待 ${waiting} / 完 ${completed}`;
+}
+
 export function currentIslandSummary(tasks: TaskCard[], _index: number): string {
   if (tasks.length === 0) {
     return "当前无任务";
