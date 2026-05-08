@@ -63,6 +63,8 @@ curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/t
 3. 确认可以看到 `/karpahere`
 4. 在测试项目中调用 `/karpahere`，确认 `.claude/CLAUDE.md` 只会得到一个带标记的块
 
+可以把使用 `/karpahere` 理解成“把 Karpathy 召唤到这个项目里”：它会把这套 Karpathy 风格的编码原则直接写进项目的说明文件里，让 Claude 在这个仓库里按这套约束工作。
+
 ## 上游参考文档
 
 这个工具还会把上游 Markdown 文件副本保存在 `upstream/` 下，方便和维护后的工具一起携带。

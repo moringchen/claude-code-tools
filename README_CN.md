@@ -58,6 +58,7 @@ npm test
 安装一个可复用的 `/karpahere` slash，用来向当前项目的 `.claude/CLAUDE.md` 追加一个带标记的 Karpathy 指南块。
 
 它把 Karpathy 风格的约束带进项目说明里，用来减少静默假设、过度设计、无关改动和目标不清的执行。
+实际效果上，可以把这个 slash 理解成“把 Karpathy 召唤到项目里”，因为它会把这套原则写进仓库的说明文件。
 
 **快速安装：**
 ```bash

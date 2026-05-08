@@ -58,6 +58,7 @@ npm test
 Install a reusable `/karpahere` slash that appends a single marked Karpathy guidelines block into the current project's `.claude/CLAUDE.md`.
 
 It brings Karpathy-inspired guardrails into project instructions to reduce silent assumptions, overengineering, unrelated edits, and vague execution.
+In practice, using the slash is a way to "summon Karpathy into the project" by writing those principles into the repo's instruction file.
 
 **Quick Install:**
 ```bash

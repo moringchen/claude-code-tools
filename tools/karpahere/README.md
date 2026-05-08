@@ -63,6 +63,8 @@ When you invoke `/karpahere`, the installed skill:
 3. Confirm `/karpahere` appears
 4. Invoke `/karpahere` in a test project and confirm `.claude/CLAUDE.md` gets one marked block
 
+In practice, using `/karpahere` is a way to "summon Karpathy into the project": it places these Karpathy-inspired coding principles directly into the project's instruction file so Claude follows them in that repo.
+
 ## Upstream reference docs
 
 This tool also keeps copies of the upstream Markdown files under `upstream/` so the source material travels with the maintained tool.
