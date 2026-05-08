@@ -1,6 +1,7 @@
 # karpahere
 
 将可复用的 `/karpahere` slash 安装到你本地的 Claude Code skills 目录。
+可以把使用 /karpahere 理解成“把 Karpathy 召唤到这个项目里”：它会把这套 Karpathy 风格的编码原则直接写进项目的说明文件里，让 Claude 在这个仓库里按这套约束工作。
 
 ## 它会做什么
 
@@ -55,6 +56,7 @@ curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/t
    - `<!-- karpahere:start -->`
    - `<!-- karpahere:end -->`
 4. 只有当该标记块不存在时，才追加 vendored 的 Karpathy 指南内容
+5. 可以把使用 /karpahere 理解成“把 Karpathy 召唤到这个项目里”：它会把这套 Karpathy 风格的编码原则直接写进项目的说明文件里，让 Claude 在这个仓库里按这套约束工作。
 
 ## 安装后验证
 
