@@ -53,6 +53,17 @@ npm install
 npm test
 ```
 
+### 4. [karpahere](tools/karpahere/)
+
+安装一个可复用的 `/karpahere` slash，用来向当前项目的 `.claude/CLAUDE.md` 追加一个带标记的 Karpathy 指南块。
+
+它把 Karpathy 风格的约束带进项目说明里，用来减少静默假设、过度设计、无关改动和目标不清的执行。
+
+**快速安装：**
+```bash
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/karpahere/install.sh | bash
+```
+
 ---
 
 ## 项目结构
@@ -74,13 +85,20 @@ claudetools/
     │   ├── setup_claude_completion.sh
     │   ├── README.md                # 工具文档（英文）
     │   └── README_CN.md             # 工具文档（中文）
-    └── claudeBoard/            # claudeBoard 桌面悬浮工具
+    ├── claudeBoard/                 # claudeBoard 桌面悬浮工具
+    │   ├── README.md                # 工具文档（英文）
+    │   ├── README_CN.md             # 工具文档（中文）
+    │   ├── package.json
+    │   ├── src/
+    │   ├── scripts/
+    │   └── src-tauri/
+    └── karpahere/                   # 本地 /karpahere slash 安装器
+        ├── install.sh
+        ├── SKILL.md
+        ├── karpathy-guidelines.md
         ├── README.md                # 工具文档（英文）
         ├── README_CN.md             # 工具文档（中文）
-        ├── package.json
-        ├── src/
-        ├── scripts/
-        └── src-tauri/
+        └── upstream/
 ```
 
 每个工具都有独立的目录，包含：

@@ -53,6 +53,17 @@ npm install
 npm test
 ```
 
+### 4. [karpahere](tools/karpahere/)
+
+Install a reusable `/karpahere` slash that appends a single marked Karpathy guidelines block into the current project's `.claude/CLAUDE.md`.
+
+It brings Karpathy-inspired guardrails into project instructions to reduce silent assumptions, overengineering, unrelated edits, and vague execution.
+
+**Quick Install:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/moringchen/claude-code-tools/main/tools/karpahere/install.sh | bash
+```
+
 ---
 
 ## Project Structure
@@ -74,13 +85,20 @@ claudetools/
     │   ├── setup_claude_completion.sh
     │   ├── README.md                # Tool documentation (EN)
     │   └── README_CN.md             # Tool documentation (CN)
-    └── claudeBoard/            # claudeBoard desktop overlay
+    ├── claudeBoard/                 # claudeBoard desktop overlay
+    │   ├── README.md                # Tool documentation (EN)
+    │   ├── README_CN.md             # Tool documentation (CN)
+    │   ├── package.json
+    │   ├── src/
+    │   ├── scripts/
+    │   └── src-tauri/
+    └── karpahere/                   # Local /karpahere slash installer
+        ├── install.sh
+        ├── SKILL.md
+        ├── karpathy-guidelines.md
         ├── README.md                # Tool documentation (EN)
         ├── README_CN.md             # Tool documentation (CN)
-        ├── package.json
-        ├── src/
-        ├── scripts/
-        └── src-tauri/
+        └── upstream/
 ```
 
 Each tool has its own directory with:
